@@ -49,6 +49,7 @@ export default function OutfitScreen() {
   const [editLogId, setEditLogId] = useState<string | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [periodFilter, setPeriodFilter] = useState<string>('all'); // 'all' | 'YYYY-MM'
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -174,6 +175,64 @@ export default function OutfitScreen() {
         )}
       </View>
 
+      {/* 연도/월 필터 */}
+      {(() => {
+        if (entries.length === 0) return null;
+        // 모든 entry의 연-월 추출
+        const periodSet = new Map<string, number>();
+        entries.forEach((e) => {
+          const ym = e.log.worn_on.slice(0, 7); // YYYY-MM
+          periodSet.set(ym, (periodSet.get(ym) ?? 0) + 1);
+        });
+        const periods = [...periodSet.entries()]
+          .sort((a, b) => b[0].localeCompare(a[0])); // 최신 순
+
+        return (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.periodScroll}
+            contentContainerStyle={styles.periodScrollContent}
+          >
+            <TouchableOpacity
+              style={[styles.periodChip, periodFilter === 'all' && styles.periodChipActive]}
+              onPress={() => setPeriodFilter('all')}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={13}
+                color={periodFilter === 'all' ? '#fff' : NAVY}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={[styles.periodChipText, periodFilter === 'all' && styles.periodChipTextActive]}>
+                전체 {entries.length}
+              </Text>
+            </TouchableOpacity>
+            {periods.map(([ym, count]) => {
+              const [year, month] = ym.split('-');
+              const active = periodFilter === ym;
+              return (
+                <TouchableOpacity
+                  key={ym}
+                  style={[styles.periodChip, active && styles.periodChipActive]}
+                  onPress={() => setPeriodFilter(ym)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.periodChipYear, active && styles.periodChipTextActive]}>{year}</Text>
+                  <Text style={[styles.periodChipMonth, active && styles.periodChipTextActive]}>
+                    {parseInt(month, 10)}월
+                  </Text>
+                  <View style={[styles.periodCountBadge, active && styles.periodCountBadgeActive]}>
+                    <Text style={[styles.periodCountText, active && styles.periodCountTextActive]}>{count}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        );
+      })()}
+
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: H_PAD,
@@ -226,7 +285,19 @@ export default function OutfitScreen() {
           </View>
         )}
 
-        {entries.map((entry) => {
+        {entries.length > 0 && periodFilter !== 'all' &&
+          entries.filter((e) => e.log.worn_on.startsWith(periodFilter)).length === 0 && (
+          <View style={styles.emptyBox}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="calendar-outline" size={40} color="#C0BDB8" />
+            </View>
+            <Text style={styles.emptyTitle}>이 기간의 기록이 없어요</Text>
+          </View>
+        )}
+
+        {entries
+          .filter((entry) => periodFilter === 'all' || entry.log.worn_on.startsWith(periodFilter))
+          .map((entry) => {
           const w = entry.log.weather;
           const weatherIcon = w ? (WEATHER_ICON[w.condition] ?? 'partly-sunny') : 'partly-sunny';
 
@@ -431,6 +502,33 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   countText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+
+  periodScroll: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 0.5, borderBottomColor: '#EDEAE6',
+    maxHeight: 64,
+  },
+  periodScrollContent: {
+    paddingHorizontal: H_PAD, paddingVertical: 12, gap: 8, alignItems: 'center',
+  },
+  periodChip: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+    backgroundColor: NAVY_LIGHT,
+    gap: 4,
+  },
+  periodChipActive: { backgroundColor: NAVY },
+  periodChipText: { fontSize: 13, fontWeight: '700', color: NAVY },
+  periodChipTextActive: { color: '#fff' },
+  periodChipYear: { fontSize: 11, fontWeight: '700', color: NAVY, opacity: 0.8 },
+  periodChipMonth: { fontSize: 13, fontWeight: '800', color: NAVY, marginLeft: 4 },
+  periodCountBadge: {
+    backgroundColor: '#fff', minWidth: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center', marginLeft: 6, paddingHorizontal: 6,
+  },
+  periodCountBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  periodCountText: { fontSize: 11, fontWeight: '800', color: NAVY },
+  periodCountTextActive: { color: '#fff' },
 
   emptyBox: { alignItems: 'center', paddingVertical: 60 },
   emptyIcon: {
