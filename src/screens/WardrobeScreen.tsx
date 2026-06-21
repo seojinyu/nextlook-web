@@ -267,9 +267,11 @@ export default function WardrobeScreen() {
                     { text: '로그아웃', style: 'destructive', onPress: () => supabase.auth.signOut() },
                   ]);
                 }}
-                style={styles.headerIconBtn}
+                style={styles.logoutBtn}
+                activeOpacity={0.7}
               >
-                <Ionicons name="log-out-outline" size={20} color="#9A9590" />
+                <Ionicons name="log-out-outline" size={18} color="#fff" />
+                <Text style={styles.logoutBtnText}>로그아웃</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -527,6 +529,12 @@ const styles = StyleSheet.create({
   },
   headerAction: { color: AMBER, fontWeight: '700', fontSize: 15 },
   headerDelete: { color: '#FF3B30', fontWeight: '700', fontSize: 15 },
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, height: 36, borderRadius: 12,
+    backgroundColor: AMBER,
+  },
+  logoutBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   filterRow: {
     flexDirection: 'row', gap: 8, paddingHorizontal: 16,
