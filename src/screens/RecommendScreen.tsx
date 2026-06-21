@@ -224,6 +224,19 @@ export default function RecommendScreen() {
           <TouchableOpacity onPress={refresh} disabled={loading} style={styles.refreshBtn} activeOpacity={0.7}>
             <Ionicons name="refresh" size={18} color="#fff" />
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
+                { text: '취소', style: 'cancel' },
+                { text: '로그아웃', style: 'destructive', onPress: () => supabase.auth.signOut() },
+              ]);
+            }}
+            style={styles.logoutBtnHeader}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="log-out-outline" size={16} color="#fff" />
+            <Text style={styles.logoutBtnHeaderText}>로그아웃</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Date Picker - Calendar Style */}
@@ -489,13 +502,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1A1A', paddingHorizontal: H_PAD, paddingTop: 16, paddingBottom: 24,
     borderBottomLeftRadius: 28, borderBottomRightRadius: 28, marginBottom: 20,
   },
-  headerInner: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
+  headerInner: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18, gap: 8 },
   greeting: { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   dateSubtext: { fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 },
   refreshBtn: {
     width: 36, height: 36, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center',
   },
+  logoutBtnHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  logoutBtnHeaderText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   datePicker: { marginBottom: 16 },
   dateItem: {

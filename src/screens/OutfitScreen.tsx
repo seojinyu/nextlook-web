@@ -173,6 +173,19 @@ export default function OutfitScreen() {
             <Text style={styles.countText}>{entries.length}</Text>
           </View>
         )}
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
+              { text: '취소', style: 'cancel' },
+              { text: '로그아웃', style: 'destructive', onPress: () => supabase.auth.signOut() },
+            ]);
+          }}
+          style={styles.logoutBtnHeader}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={16} color="#fff" />
+          <Text style={styles.logoutBtnHeaderText}>로그아웃</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 연도/월 필터 */}
@@ -502,6 +515,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   countText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  logoutBtnHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, height: 32, borderRadius: 10,
+    backgroundColor: NAVY, marginLeft: 8,
+  },
+  logoutBtnHeaderText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   periodScroll: {
     backgroundColor: '#fff',
