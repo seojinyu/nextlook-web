@@ -260,7 +260,15 @@ export default function WardrobeScreen() {
                   <Ionicons name="checkmark-circle-outline" size={20} color={AMBER} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.headerIconBtn}>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
+                    { text: '취소', style: 'cancel' },
+                    { text: '로그아웃', style: 'destructive', onPress: () => supabase.auth.signOut() },
+                  ]);
+                }}
+                style={styles.headerIconBtn}
+              >
                 <Ionicons name="log-out-outline" size={20} color="#9A9590" />
               </TouchableOpacity>
             </View>
