@@ -39,7 +39,15 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "NextLook",
+      "shortName": "NextLook",
+      "lang": "ko",
+      "themeColor": "#1B6B4A",
+      "backgroundColor": "#FAFAF8",
+      "display": "standalone",
+      "orientation": "portrait",
+      "description": "AI가 추천하는 오늘의 코디"
     },
     "plugins": [
       "expo-secure-store",

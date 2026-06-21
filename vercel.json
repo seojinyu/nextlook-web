@@ -1,8 +1,12 @@
 {
-  "buildCommand": "npx expo export --platform web",
+  "buildCommand": "npx expo export --platform web && node scripts/inject-pwa.js",
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
+    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/icon-(.*)", "destination": "/icon-$1" },
+    { "source": "/apple-touch-icon.png", "destination": "/apple-touch-icon.png" },
+    { "source": "/favicon(.*)", "destination": "/favicon$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -11,6 +15,12 @@
       "headers": [
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" }
       ]
     }
   ]
