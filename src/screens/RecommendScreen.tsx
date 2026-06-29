@@ -110,10 +110,12 @@ export default function RecommendScreen() {
       cachedRecentIds = new Set<string>();
       (recentRes.data ?? []).forEach((r: any) => (r.clothing_ids as string[]).forEach((id: string) => cachedRecentIds!.add(id)));
 
-      // Pre-cache all signed URLs for all clothes
+      // Pre-cache all signed URLs for all clothes (prefer processed_image_path on web)
       const urlMap = new Map<string, Clothing & { signedUrl: string }>();
       await Promise.all(cachedClothes.map(async (c) => {
-        const url = await getCachedSignedUrl(c.image_path);
+        const preferProcessed = Platform.OS === 'web' && c.processed_image_path;
+        const path = preferProcessed ? c.processed_image_path! : c.image_path;
+        const url = await getCachedSignedUrl(path);
         urlMap.set(c.id, { ...c, signedUrl: url });
       }));
       cachedClothesUrlMap = urlMap;
@@ -460,6 +462,19 @@ function MannequinView({
   bottomItem: (Clothing & { signedUrl: string }) | null;
   jacketItem: (Clothing & { signedUrl: string }) | null;
 }) {
+  // 웹에서 배경 제거된 이미지가 있는 경우 → 매거진 플랫레이 레이아웃
+  const isWeb = Platform.OS === 'web';
+  const hasProcessed = isWeb && (
+    !!topItem?.processed_image_path ||
+    !!bottomItem?.processed_image_path ||
+    !!jacketItem?.processed_image_path
+  );
+
+  if (hasProcessed) {
+    return <MagazineLayoutView topItem={topItem} bottomItem={bottomItem} jacketItem={jacketItem} />;
+  }
+
+  // 기본 마네킹 뷰 (배경 있는 사진용)
   const TOP_W = 150;
   const TOP_H = 150;
   const BOTTOM_W = 140;
@@ -494,6 +509,79 @@ function MannequinView({
       </View>
     </View>
   );
+}
+
+/** 매거진 화보 스타일 플랫레이 (웹 + 배경 제거된 이미지) */
+function MagazineLayoutView({
+  topItem, bottomItem, jacketItem,
+}: {
+  topItem: (Clothing & { signedUrl: string }) | null;
+  bottomItem: (Clothing & { signedUrl: string }) | null;
+  jacketItem: (Clothing & { signedUrl: string }) | null;
+}) {
+  // 코디 톤에 따른 배경 컬러 (앰버/베이지/그린 톤 중 선택)
+  const bgColor = pickBackgroundFromOutfit(topItem, bottomItem, jacketItem);
+
+  return (
+    <View style={[styles.magazineRoot, { backgroundColor: bgColor }]}>
+      {/* 자켓 (좌측 상단) */}
+      {jacketItem && (
+        <Image
+          source={{ uri: jacketItem.signedUrl }}
+          style={styles.magazineJacket}
+          resizeMode="contain"
+        />
+      )}
+
+      {/* 상의 (중앙 상단) */}
+      {topItem ? (
+        <Image
+          source={{ uri: topItem.signedUrl }}
+          style={[styles.magazineTop, !jacketItem && styles.magazineTopCenter]}
+          resizeMode="contain"
+        />
+      ) : (
+        <View style={[styles.magazineTop, styles.magazineEmpty]}>
+          <Ionicons name="shirt-outline" size={40} color="rgba(255,255,255,0.5)" />
+        </View>
+      )}
+
+      {/* 하의 (하단) */}
+      {bottomItem ? (
+        <Image
+          source={{ uri: bottomItem.signedUrl }}
+          style={styles.magazineBottom}
+          resizeMode="contain"
+        />
+      ) : (
+        <View style={[styles.magazineBottom, styles.magazineEmpty]}>
+          <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.5)" />
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** 코디 주요 컬러를 보고 잘 어울리는 배경색 선택 */
+function pickBackgroundFromOutfit(
+  top: (Clothing & { signedUrl: string }) | null,
+  bottom: (Clothing & { signedUrl: string }) | null,
+  jacket: (Clothing & { signedUrl: string }) | null,
+): string {
+  const colors = [top, bottom, jacket].filter(Boolean).map((i) => i!.primary_color).filter(Boolean) as string[];
+  if (colors.length === 0) return '#A88B6A'; // 기본 카멜브라운
+
+  // 어두운 톤이 많으면 → 베이지/카멜
+  // 밝은 톤이 많으면 → 그레이/올리브
+  const darkCount = colors.filter((c) => {
+    const rgb = parseInt(c.slice(1), 16);
+    const r = (rgb >> 16) & 0xff, g = (rgb >> 8) & 0xff, b = rgb & 0xff;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 100;
+  }).length;
+
+  if (darkCount >= colors.length / 2) return '#A88B6A'; // 다크 → 카멜브라운
+  return '#8A9A7B'; // 라이트 → 세이지그린
 }
 
 const styles = StyleSheet.create({
@@ -551,6 +639,40 @@ const styles = StyleSheet.create({
     width: 32, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
   },
   viewToggleBtnActive: { backgroundColor: BOTTEGA },
+
+  // ─── 매거진 플랫레이 (웹, 배경 제거 이미지 전용) ───
+  magazineRoot: {
+    width: '100%',
+    aspectRatio: 0.78,
+    borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+    alignSelf: 'center',
+  },
+  magazineJacket: {
+    position: 'absolute',
+    top: '6%', left: '5%',
+    width: '38%', height: '38%',
+    transform: [{ rotate: '-6deg' }],
+  },
+  magazineTop: {
+    position: 'absolute',
+    top: '4%', right: '5%',
+    width: '52%', height: '50%',
+  },
+  magazineTopCenter: {
+    left: '24%', right: '24%',
+  },
+  magazineBottom: {
+    position: 'absolute',
+    bottom: '4%', left: '20%',
+    width: '60%', height: '55%',
+  },
+  magazineEmpty: {
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   mannequinRoot: { alignItems: 'center', marginVertical: 4 },
   mannequinBg: {

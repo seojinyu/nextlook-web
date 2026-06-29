@@ -11,6 +11,7 @@ export interface Clothing {
   user_id: string;
   category: ClothingCategory;
   image_path: string;
+  processed_image_path: string | null;
   primary_color: string | null;
   color_tags: string[];
   style_tags: string[];

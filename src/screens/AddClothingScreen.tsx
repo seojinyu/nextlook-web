@@ -19,6 +19,8 @@ import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { supabase, uploadClothingImage, invokeEdge } from '../lib/supabase';
 import { fetchCurrentWeather } from '../lib/weather';
+import { removeBackgroundWeb } from '../lib/bgRemove';
+import { Platform } from 'react-native';
 import type { ClothingCategory } from '../lib/types';
 
 const COLORS = [
@@ -77,6 +79,7 @@ export default function AddClothingScreen() {
   const nav = useNavigation<any>();
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
+  const [processedPath, setProcessedPath] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
@@ -110,6 +113,7 @@ export default function AddClothingScreen() {
     setAnalyzing(true);
     setStep(1);
     setDetectedColor(null); setSelectedColor(null); setDetectedCategory('top');
+    setProcessedPath(null);
     setDetectedSeason('spring_fall'); setDerivedSeasonTags(['spring_fall']); setWeatherData(null); setImageHash('');
     try {
       setStatus('이미지 처리 중...');
@@ -149,6 +153,21 @@ export default function AddClothingScreen() {
       setStatus('업로드 중...');
       const path = await uploadClothingImage(userData.user.id, resized.uri, 'image/jpeg');
       setUploadedPath(path);
+
+      // 웹에서 배경 제거 (백그라운드, 실패해도 진행)
+      if (Platform.OS === 'web') {
+        setStatus('배경 제거 중...');
+        try {
+          const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
+          if (bgRemovedUrl) {
+            const processedPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
+            setProcessedPath(processedPath);
+            URL.revokeObjectURL(bgRemovedUrl);
+          }
+        } catch (e) {
+          console.warn('배경 제거 실패, 원본만 저장:', e);
+        }
+      }
 
       setStatus('AI 분석 중...');
       const locPerm = await Location.requestForegroundPermissionsAsync();
@@ -201,6 +220,7 @@ export default function AddClothingScreen() {
       const catLabel = CAT_LABEL[detectedCategory] ?? '상의';
       const { error } = await supabase.from('clothes').insert({
         user_id: userData.user.id, image_path: uploadedPath, category: detectedCategory,
+        processed_image_path: processedPath,
         primary_color: selectedColor.hex, color_tags: [selectedColor.name],
         style_tags: imageHash ? [imageHash] : [], season_tags: derivedSeasonTags,
         min_temp_c: tempRange.min, max_temp_c: tempRange.max,
@@ -216,7 +236,7 @@ export default function AddClothingScreen() {
   };
 
   const reset = () => {
-    setLocalUri(null); setUploadedPath(null);
+    setLocalUri(null); setUploadedPath(null); setProcessedPath(null);
     setDetectedColor(null); setSelectedColor(null); setDetectedCategory('top');
     setDetectedSeason('spring_fall'); setDerivedSeasonTags(['spring_fall']); setWeatherData(null); setImageHash(''); setStep(0);
   };
