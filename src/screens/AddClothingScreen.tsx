@@ -94,19 +94,32 @@ export default function AddClothingScreen() {
   const [derivedSeasonTags, setDerivedSeasonTags] = useState<string[]>(['spring_fall']);
 
   const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { Alert.alert('권한 필요', '카메라 권한을 허용해 주세요.'); return; }
+    if (Platform.OS !== 'web') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { Alert.alert('권한 필요', '카메라 권한을 허용해 주세요.'); return; }
+    }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsEditing: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: Platform.OS !== 'web', // 웹에서 편집 UI 비활성화 (호환 이슈)
     });
-    if (!result.canceled) processImage(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]?.uri) processImage(result.assets[0].uri);
   };
 
   const pickFromLibrary = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsEditing: true,
-    });
-    if (!result.canceled) processImage(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: Platform.OS !== 'web', // 웹에서 편집 UI 비활성화
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        processImage(result.assets[0].uri);
+      }
+    } catch (e: any) {
+      console.error('[pickFromLibrary] error:', e);
+      Alert.alert('사진 선택 실패', e?.message ?? String(e));
+    }
   };
 
   const processImage = async (uri: string) => {
@@ -218,14 +231,24 @@ export default function AddClothingScreen() {
 
       const tempRange = deriveTempRange(weatherData.temp_c);
       const catLabel = CAT_LABEL[detectedCategory] ?? '상의';
-      const { error } = await supabase.from('clothes').insert({
+      const insertData: any = {
         user_id: userData.user.id, image_path: uploadedPath, category: detectedCategory,
-        processed_image_path: processedPath,
         primary_color: selectedColor.hex, color_tags: [selectedColor.name],
         style_tags: imageHash ? [imageHash] : [], season_tags: derivedSeasonTags,
         min_temp_c: tempRange.min, max_temp_c: tempRange.max,
         description: `${selectedColor.name} ${catLabel}`,
-      });
+      };
+      // processed_image_path 컬럼이 있을 때만 추가 (마이그레이션 안 된 경우 보호)
+      if (processedPath) insertData.processed_image_path = processedPath;
+
+      let { error } = await supabase.from('clothes').insert(insertData);
+      // 컬럼 누락 에러 (마이그레이션 안 됨) → 해당 필드 빼고 재시도
+      if (error && /processed_image_path/.test(error.message || '')) {
+        console.warn('processed_image_path 컬럼 없음, 원본만 저장');
+        delete insertData.processed_image_path;
+        const retry = await supabase.from('clothes').insert(insertData);
+        error = retry.error;
+      }
       if (error) throw error;
       nav.goBack();
     } catch (e: any) {
