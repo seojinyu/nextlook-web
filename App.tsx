@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
@@ -7,11 +8,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useSession } from './src/lib/auth';
+import { supabase } from './src/lib/supabase';
 import AuthScreen from './src/screens/AuthScreen';
 import WardrobeScreen from './src/screens/WardrobeScreen';
 import AddClothingScreen from './src/screens/AddClothingScreen';
 import RecommendScreen from './src/screens/RecommendScreen';
 import OutfitScreen from './src/screens/OutfitScreen';
+import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -90,8 +93,32 @@ function MainTabs() {
 
 export default function App() {
   const { session, loading } = useSession();
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [needsProfile, setNeedsProfile] = useState(false);
 
-  if (loading) {
+  useEffect(() => {
+    if (!session) {
+      setProfileChecked(false);
+      setNeedsProfile(false);
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('profile_completed_at')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        setNeedsProfile(!data?.profile_completed_at);
+      } catch (e) {
+        setNeedsProfile(false); // 에러 시 그냥 통과
+      } finally {
+        setProfileChecked(true);
+      }
+    })();
+  }, [session]);
+
+  if (loading || (session && !profileChecked)) {
     return (
       <View style={styles.splash}>
         <Ionicons name="shirt-outline" size={48} color="#1B6B4A" />
@@ -100,10 +127,20 @@ export default function App() {
     );
   }
 
+  const provider = session?.user?.app_metadata?.provider as 'email' | 'google' | 'kakao' | undefined;
+
   return (
     <SafeAreaProvider>
       <NavigationContainer theme={AppTheme}>
-        {session ? (
+        {!session ? (
+          <AuthScreen />
+        ) : needsProfile ? (
+          <ProfileSetupScreen
+            email={session.user.email ?? undefined}
+            signupSource={provider}
+            onComplete={() => setNeedsProfile(false)}
+          />
+        ) : (
           <Stack.Navigator>
             <Stack.Screen
               name="Tabs"
@@ -122,8 +159,6 @@ export default function App() {
               }}
             />
           </Stack.Navigator>
-        ) : (
-          <AuthScreen />
         )}
       </NavigationContainer>
       <StatusBar style="dark" />

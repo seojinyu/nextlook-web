@@ -45,6 +45,24 @@ export default function AuthScreen() {
     }
   };
 
+  const signInWithProvider = async (provider: 'google' | 'kakao') => {
+    setLoading(true);
+    try {
+      const redirectTo = Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.origin
+        : undefined;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider as any,
+        options: redirectTo ? { redirectTo } : undefined,
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      Alert.alert('로그인 실패', e.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const sendResetEmail = async () => {
     const target = resetEmail.trim();
     if (!target) {
@@ -126,6 +144,35 @@ export default function AuthScreen() {
               {mode === 'signin' ? '로그인' : '가입하기'}
             </Text>
           )}
+        </TouchableOpacity>
+
+        {/* OAuth 구분선 */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>또는</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Google 로그인 */}
+        <TouchableOpacity
+          style={styles.googleBtn}
+          onPress={() => signInWithProvider('google')}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="logo-google" size={18} color="#4285F4" />
+          <Text style={styles.googleBtnText}>Google로 계속하기</Text>
+        </TouchableOpacity>
+
+        {/* Kakao 로그인 */}
+        <TouchableOpacity
+          style={styles.kakaoBtn}
+          onPress={() => signInWithProvider('kakao')}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="chatbubble" size={16} color="#3C1E1E" />
+          <Text style={styles.kakaoBtnText}>카카오로 계속하기</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -246,6 +293,24 @@ const styles = StyleSheet.create({
 
   forgotBtn: { marginTop: 12, alignItems: 'center' },
   forgotText: { color: '#9A9590', fontSize: 13, textDecorationLine: 'underline' },
+
+  dividerRow: {
+    flexDirection: 'row', alignItems: 'center', marginVertical: 20,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#EDEAE6' },
+  dividerText: { marginHorizontal: 10, color: '#9A9590', fontSize: 12, fontWeight: '600' },
+
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E0DDD8',
+    paddingVertical: 14, borderRadius: 12, marginBottom: 10,
+  },
+  googleBtnText: { color: '#1A1A1A', fontSize: 14, fontWeight: '600' },
+  kakaoBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#FEE500', paddingVertical: 14, borderRadius: 12,
+  },
+  kakaoBtnText: { color: '#3C1E1E', fontSize: 14, fontWeight: '600' },
 
   modalBackdrop: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
