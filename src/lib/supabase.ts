@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -11,12 +12,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+const isWeb = Platform.OS === 'web';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    // 웹에선 localStorage 자동 사용 (AsyncStorage는 native only 안전)
+    storage: isWeb ? undefined : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // 웹에서만 URL의 access_token 자동 감지 (OAuth 리다이렉트 완료 후 필수)
+    detectSessionInUrl: isWeb,
+    flowType: 'pkce',
   },
 });
 
