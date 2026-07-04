@@ -46,18 +46,39 @@ export default function AuthScreen() {
   };
 
   const signInWithProvider = async (provider: 'google' | 'kakao') => {
+    console.log(`[OAuth] Starting ${provider} login...`);
     setLoading(true);
     try {
       const redirectTo = Platform.OS === 'web' && typeof window !== 'undefined'
         ? window.location.origin
         : undefined;
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log(`[OAuth] redirectTo:`, redirectTo);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
-        options: redirectTo ? { redirectTo } : undefined,
+        options: {
+          ...(redirectTo ? { redirectTo } : {}),
+          skipBrowserRedirect: false, // 자동으로 브라우저 리다이렉트
+        },
       });
+
+      console.log(`[OAuth] response:`, { data, error });
+
       if (error) throw error;
+      if (!data?.url) throw new Error('OAuth URL 없음 - Supabase에서 provider를 활성화해 주세요');
+
+      // 웹에서 수동 리다이렉트 (일부 브라우저에서 자동 리다이렉트가 안 될 수 있음)
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.href = data.url;
+      }
     } catch (e: any) {
-      Alert.alert('로그인 실패', e.message ?? String(e));
+      console.error(`[OAuth] ${provider} failed:`, e);
+      const msg = e.message ?? String(e);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`${provider === 'google' ? 'Google' : '카카오'} 로그인 실패\n\n${msg}\n\nSupabase에서 ${provider} provider가 활성화되어 있고 Redirect URLs이 설정되어 있는지 확인해 주세요.`);
+      } else {
+        Alert.alert('로그인 실패', msg);
+      }
     } finally {
       setLoading(false);
     }
