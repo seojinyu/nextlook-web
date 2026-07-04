@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getSignedUrl } from '../lib/supabase';
+import { confirm } from '../lib/confirm';
 import type { Clothing, WearLog } from '../lib/types';
 
 const WEATHER_ICON: Record<string, string> = {
@@ -175,10 +176,12 @@ export default function OutfitScreen() {
         )}
         <TouchableOpacity
           onPress={() => {
-            Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
-              { text: '취소', style: 'cancel' },
-              { text: '로그아웃', style: 'destructive', onPress: () => supabase.auth.signOut() },
-            ]);
+            confirm(
+              '로그아웃',
+              '정말 로그아웃 하시겠습니까?',
+              () => { supabase.auth.signOut(); },
+              { confirmText: '로그아웃', destructive: true }
+            );
           }}
           style={styles.logoutBtnHeader}
           activeOpacity={0.7}
