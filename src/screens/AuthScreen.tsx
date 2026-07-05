@@ -54,11 +54,15 @@ export default function AuthScreen() {
         : undefined;
       console.log(`[OAuth] redirectTo:`, redirectTo);
 
+      // Kakao는 비즈 앱이 아니면 이메일 요청 불가 → 닉네임/프로필사진만 요청
+      const kakaoScopes = 'profile_nickname,profile_image';
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
         options: {
           ...(redirectTo ? { redirectTo } : {}),
-          skipBrowserRedirect: false, // 자동으로 브라우저 리다이렉트
+          skipBrowserRedirect: false,
+          ...(provider === 'kakao' ? { scopes: kakaoScopes } : {}),
         },
       });
 
