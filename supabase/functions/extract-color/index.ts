@@ -114,7 +114,7 @@ function extractDominantColor(data: Uint8Array, width: number, height: number): 
   };
 }
 
-async function detectCategoryAndSeason(imageBytes: Uint8Array): Promise<{ category: string; season: string }> {
+async function detectCategoryAndSeason(imageBytes: Uint8Array): Promise<{ category: string; season: string; sleeve_length?: string }> {
   if (!GEMINI_API_KEY) return { category: 'top', season: 'spring_fall' };
   try {
     const b64 = encodeBase64(imageBytes);
@@ -127,27 +127,70 @@ async function detectCategoryAndSeason(imageBytes: Uint8Array): Promise<{ catego
           contents: [{
             parts: [
               { inlineData: { mimeType: 'image/jpeg', data: b64 } },
-              { text: 'This is a photo of a clothing item. Analyze it and reply with ONLY a JSON object, nothing else:\n{"category":"top or bottom or jacket","season":"summer or winter or spring_fall"}\n\nRules:\n- category: top (shirts, t-shirts, blouses, sweaters, hoodies), bottom (pants, jeans, skirts, shorts), jacket (coats, jackets, blazers, padded jackets)\n- season: summer (thin, sleeveless, short-sleeve, shorts, linen), winter (thick, padded, heavy coat, wool, fleece), spring_fall (light layers, long-sleeve, medium thickness)\n\nReply ONLY the JSON object.' },
+              { text: `This is a photo of a clothing item. Analyze it VERY CAREFULLY and reply with ONLY a JSON object, nothing else:
+{"category":"top or bottom or jacket","season":"summer or winter or spring_fall","sleeve_length":"short or long or sleeveless or none"}
+
+STRICT RULES for season classification:
+
+SUMMER (must classify as summer if ANY of these):
+- Short-sleeve t-shirts, tank tops, sleeveless tops
+- Shorts (any length above knee)
+- Skirts (mini/short)
+- Linen or very thin fabric
+- Cropped tops
+- Sundresses
+
+WINTER:
+- Thick padded coats/jackets
+- Wool/fleece sweaters
+- Heavy knits
+- Turtlenecks with thick fabric
+
+SPRING_FALL (default for middle-weight):
+- Long-sleeve shirts (not thick)
+- Light sweaters
+- Regular pants/jeans
+- Light jackets/cardigans
+
+CATEGORY rules:
+- top: shirts, t-shirts, blouses, sweaters, hoodies (upper body)
+- bottom: pants, jeans, skirts, shorts (lower body)
+- jacket: coats, jackets, blazers, padded jackets, cardigans (outer layer)
+
+SLEEVE_LENGTH (for tops/jackets):
+- short: short sleeves visible
+- long: long sleeves visible
+- sleeveless: no sleeves
+- none: not applicable (for bottoms)
+
+Reply ONLY the JSON object.` },
             ],
           }],
-          generationConfig: { temperature: 0, maxOutputTokens: 50 },
+          generationConfig: { temperature: 0, maxOutputTokens: 100 },
         }),
       }
     );
     if (!res.ok) return { category: 'top', season: 'spring_fall' };
     const json = await res.json();
     const text = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+    let cat: string; let szn: string; let sleeve: string | undefined;
     try {
       const parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
-      const cat = ['top', 'bottom', 'jacket'].includes(parsed.category) ? parsed.category : 'top';
-      const szn = ['summer', 'winter', 'spring_fall'].includes(parsed.season) ? parsed.season : 'spring_fall';
-      return { category: cat, season: szn };
+      cat = ['top', 'bottom', 'jacket'].includes(parsed.category) ? parsed.category : 'top';
+      szn = ['summer', 'winter', 'spring_fall'].includes(parsed.season) ? parsed.season : 'spring_fall';
+      sleeve = parsed.sleeve_length;
     } catch {
-      // fallback: parse from text
-      const cat = text.includes('bottom') ? 'bottom' : text.includes('jacket') ? 'jacket' : 'top';
-      const szn = text.includes('summer') ? 'summer' : text.includes('winter') ? 'winter' : 'spring_fall';
-      return { category: cat, season: szn };
+      cat = text.includes('bottom') ? 'bottom' : text.includes('jacket') ? 'jacket' : 'top';
+      szn = text.includes('summer') ? 'summer' : text.includes('winter') ? 'winter' : 'spring_fall';
+      sleeve = text.includes('"short"') ? 'short' : text.includes('sleeveless') ? 'sleeveless' : undefined;
     }
+
+    // 안전장치: 반팔/민소매 상의 → 강제로 여름
+    if (cat === 'top' && (sleeve === 'short' || sleeve === 'sleeveless')) {
+      szn = 'summer';
+    }
+
+    return { category: cat, season: szn, sleeve_length: sleeve };
   } catch {
     return { category: 'top', season: 'spring_fall' };
   }
@@ -203,6 +246,7 @@ Deno.serve(async (req) => {
       ...colorResult,
       category: aiResult.category,
       season: aiResult.season,
+      sleeve_length: aiResult.sleeve_length,
     });
   } catch (e) {
     return json({ error: 'internal', detail: String(e) }, 500);

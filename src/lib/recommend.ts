@@ -47,10 +47,26 @@ export function generateRecommendations(
   weather: WeatherSnapshot,
   recentIds: Set<string>
 ): OutfitSuggestion[] {
-  const available = clothes.filter((c) => !recentIds.has(c.id));
-  const tops = shuffle(available.filter((c) => c.category === 'top' && fitsWeather(c, weather)));
-  const bottoms = shuffle(available.filter((c) => c.category === 'bottom' && fitsWeather(c, weather)));
-  const jackets = shuffle(available.filter((c) => c.category === 'jacket' && fitsWeather(c, weather)));
+  // 우선 최근에 안 입은 옷 위주로
+  let available = clothes.filter((c) => !recentIds.has(c.id));
+  let tops = shuffle(available.filter((c) => c.category === 'top' && fitsWeather(c, weather)));
+  let bottoms = shuffle(available.filter((c) => c.category === 'bottom' && fitsWeather(c, weather)));
+  let jackets = shuffle(available.filter((c) => c.category === 'jacket' && fitsWeather(c, weather)));
+
+  // 상의나 하의 없으면 recent 필터 해제 (최근에 입었어도 다시 추천)
+  if (tops.length === 0 || bottoms.length === 0) {
+    available = clothes;
+    tops = shuffle(clothes.filter((c) => c.category === 'top' && fitsWeather(c, weather)));
+    bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && fitsWeather(c, weather)));
+    jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && fitsWeather(c, weather)));
+  }
+
+  // 날씨 필터로 아무것도 안 남으면 날씨 조건도 해제 (온도 매칭 안 돼도 추천)
+  if (tops.length === 0 || bottoms.length === 0) {
+    tops = shuffle(clothes.filter((c) => c.category === 'top'));
+    bottoms = shuffle(clothes.filter((c) => c.category === 'bottom'));
+    jackets = shuffle(clothes.filter((c) => c.category === 'jacket'));
+  }
 
   const tempDiff = weather.temp_max_c - weather.temp_min_c;
   const needJacket = weather.temp_min_c < 15 || tempDiff >= 10; // 최저 15°C 미만 또는 일교차 10°C 이상
@@ -117,13 +133,13 @@ export function generateRecommendations(
     return null;
   }
 
-  /** 상의+하의+자켓 조합 추가 */
-  function tryAdd(top: Clothing, bottom: Clothing): boolean {
+  /** 상의+하의+자켓 조합 추가 (색상 매칭 여부에 따라 selective) */
+  function tryAdd(top: Clothing, bottom: Clothing, strictColor = true): boolean {
     const key = `${top.id}_${bottom.id}`;
     if (usedPairs.has(key)) return false;
 
-    // 상의-하의 색상 매칭
-    if (top.primary_color && bottom.primary_color && !colorsMatch(top.primary_color, bottom.primary_color)) return false;
+    // 상의-하의 색상 매칭 (strict 모드에서만 검사)
+    if (strictColor && top.primary_color && bottom.primary_color && !colorsMatch(top.primary_color, bottom.primary_color)) return false;
 
     // 자켓: 날씨상 필요할 때만 포함
     const jacket: Clothing | null = needJacket ? findBestJacket(top, bottom) : null;
@@ -139,7 +155,7 @@ export function generateRecommendations(
     return true;
   }
 
-  // Pass 1: 상의·하의 모두 유니크
+  // Pass 1: 상의·하의 모두 유니크 + 색상 매칭
   const usedTops = new Set<string>();
   const usedBottoms = new Set<string>();
   for (const top of tops) {
@@ -148,7 +164,7 @@ export function generateRecommendations(
     for (const bottom of bottoms) {
       if (suggestions.length >= 3) break;
       if (usedBottoms.has(bottom.id)) continue;
-      if (tryAdd(top, bottom)) {
+      if (tryAdd(top, bottom, true)) {
         usedTops.add(top.id);
         usedBottoms.add(bottom.id);
         break;
@@ -156,13 +172,24 @@ export function generateRecommendations(
     }
   }
 
-  // Pass 2: 상의 또는 하의 1회 재사용 허용
+  // Pass 2: 재사용 허용 + 색상 매칭
   if (suggestions.length < 3) {
     for (const top of tops) {
       if (suggestions.length >= 3) break;
       for (const bottom of bottoms) {
         if (suggestions.length >= 3) break;
-        tryAdd(top, bottom);
+        tryAdd(top, bottom, true);
+      }
+    }
+  }
+
+  // Pass 3: 최후의 수단 - 색상 매칭 무시 (조합이 3개 안 나올 때)
+  if (suggestions.length < 3) {
+    for (const top of tops) {
+      if (suggestions.length >= 3) break;
+      for (const bottom of bottoms) {
+        if (suggestions.length >= 3) break;
+        tryAdd(top, bottom, false);
       }
     }
   }

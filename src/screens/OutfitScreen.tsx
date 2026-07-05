@@ -87,9 +87,11 @@ export default function OutfitScreen() {
           await Promise.all(
             batch.map(async (c: any) => {
               try {
+                // 배경 제거된 이미지가 있으면 우선 사용
+                const path = c.processed_image_path || c.image_path;
                 clothesMap.set(c.id, {
                   ...(c as Clothing),
-                  signedUrl: await getSignedUrl(c.image_path),
+                  signedUrl: await getSignedUrl(path),
                 });
               } catch (e) {
                 console.warn('signed URL 실패:', c.id, e);

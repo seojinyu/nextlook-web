@@ -192,7 +192,7 @@ export default function AddClothingScreen() {
       const loc = await Location.getCurrentPositionAsync({});
 
       const [analyzeResult, weather] = await Promise.all([
-        invokeEdge<{ name: string; hex: string; category?: string; season?: string }>('extract-color', { path }),
+        invokeEdge<{ name: string; hex: string; category?: string; season?: string; sleeve_length?: string }>('extract-color', { path }),
         fetchCurrentWeather(loc.coords.latitude, loc.coords.longitude),
       ]);
 
@@ -205,7 +205,11 @@ export default function AddClothingScreen() {
         setDetectedCategory(cat);
       }
 
-      const szn = analyzeResult.season;
+      let szn = analyzeResult.season;
+      // 클라이언트 안전장치: 반팔/민소매 상의 → 무조건 여름
+      if ((cat === 'top' || cat === 'jacket') && (analyzeResult.sleeve_length === 'short' || analyzeResult.sleeve_length === 'sleeveless')) {
+        szn = 'summer';
+      }
       if (szn === 'summer' || szn === 'winter' || szn === 'spring_fall') {
         setDetectedSeason(szn);
       }

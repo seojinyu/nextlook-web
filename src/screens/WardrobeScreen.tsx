@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -120,9 +120,11 @@ export default function WardrobeScreen() {
         const results = await Promise.all(
           batch.map(async (c: any) => {
             try {
+              // 배경 제거된 이미지가 있으면 우선 사용
+              const path = c.processed_image_path || c.image_path;
               return {
                 ...(c as Clothing),
-                signedUrl: await getSignedUrl(c.image_path),
+                signedUrl: await getSignedUrl(path),
               };
             } catch (e) {
               console.warn('signed URL 실패:', c.id, e);
@@ -143,7 +145,18 @@ export default function WardrobeScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // 첫 마운트 시 로드 + 포커스 시 5초 이내 재로드 방지
+  const lastLoadRef = useRef(0);
+  useEffect(() => { load(); }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      if (now - lastLoadRef.current > 5000) {
+        lastLoadRef.current = now;
+        load();
+      }
+    }, [load])
+  );
 
   const filteredItems = useMemo(() => items
     .filter((item) => {
@@ -388,6 +401,11 @@ export default function WardrobeScreen() {
         columnWrapperStyle={{ gap: CARD_GAP }}
         contentContainerStyle={{ paddingHorizontal: CARD_PADDING, paddingTop: 4, paddingBottom: insets.bottom + 90, gap: CARD_GAP }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={AMBER} />}
+        // 성능 최적화 - 웹에서 크래시 방지
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <View style={styles.emptyIcon}>
