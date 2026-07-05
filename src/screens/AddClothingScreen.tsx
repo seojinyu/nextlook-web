@@ -169,16 +169,20 @@ export default function AddClothingScreen() {
 
       // 웹에서 배경 제거 (백그라운드, 실패해도 진행)
       if (Platform.OS === 'web') {
-        setStatus('배경 제거 중...');
+        setStatus('배경 제거 중... (첫 등록은 20~40초)');
         try {
           const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
           if (bgRemovedUrl) {
+            setStatus('배경 제거 완료, 저장 중...');
             const processedPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
             setProcessedPath(processedPath);
             URL.revokeObjectURL(bgRemovedUrl);
+            console.log('[AddClothing] 배경 제거 및 업로드 성공:', processedPath);
+          } else {
+            console.warn('[AddClothing] 배경 제거 결과 없음, 원본만 사용');
           }
         } catch (e) {
-          console.warn('배경 제거 실패, 원본만 저장:', e);
+          console.warn('[AddClothing] 배경 제거 실패, 원본만 저장:', e);
         }
       }
 
