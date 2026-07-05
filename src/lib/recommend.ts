@@ -19,11 +19,26 @@ function getColorGroup(hex: string): string {
   return 'neutral';
 }
 
-function colorsMatch(a: string, b: string): boolean {
+/**
+ * 색상 매칭 검사
+ * @param strict true (기본): 뉴트럴 또는 같은 그룹만 매칭
+ *               false (관대): + 인접 톤(웜+어스, 쿨+어스) 허용
+ */
+function colorsMatch(a: string, b: string, strict = true): boolean {
   const ga = getColorGroup(a);
   const gb = getColorGroup(b);
+  // 뉴트럴은 항상 매칭
   if (ga === 'neutral' || gb === 'neutral') return true;
-  return ga === gb;
+  // 같은 그룹은 항상 매칭
+  if (ga === gb) return true;
+  // 관대한 매칭: 조화되는 인접 톤 허용
+  if (!strict) {
+    // 웜톤 ↔ 어스톤 (레드/오렌지 + 브라운/카키)
+    if ((ga === 'warm' && gb === 'earth') || (ga === 'earth' && gb === 'warm')) return true;
+    // 쿨톤 ↔ 어스톤 (네이비/블루 + 브라운/카키/그린)
+    if ((ga === 'cool' && gb === 'earth') || (ga === 'earth' && gb === 'cool')) return true;
+  }
+  return false;
 }
 
 function fitsWeather(item: Clothing, weather: WeatherSnapshot): boolean {
@@ -110,6 +125,9 @@ export function generateRecommendations(
       if (tg === 'neutral' && bg === 'neutral') parts.push('뉴트럴 배색');
       else if (tg === 'neutral' || bg === 'neutral') parts.push('뉴트럴 매치');
       else if (tg === bg) parts.push(`${groupName(tg)} 톤온톤 배색`);
+      // 인접 톤 매칭 (관대한 매칭)
+      else if ((tg === 'warm' && bg === 'earth') || (tg === 'earth' && bg === 'warm')) parts.push('웜톤 조화');
+      else if ((tg === 'cool' && bg === 'earth') || (tg === 'earth' && bg === 'cool')) parts.push('쿨어스 조화');
     }
 
     // 자켓 이유
@@ -133,35 +151,34 @@ export function generateRecommendations(
   }
 
   /** 상의·하의·자켓 색상 매칭 확인 */
-  function jacketMatchesBoth(j: Clothing, top: Clothing, bottom: Clothing): boolean {
+  function jacketMatchesBoth(j: Clothing, top: Clothing, bottom: Clothing, strict = true): boolean {
     if (!j.primary_color) return true;
-    return (!top.primary_color || colorsMatch(j.primary_color, top.primary_color)) &&
-           (!bottom.primary_color || colorsMatch(j.primary_color, bottom.primary_color));
+    return (!top.primary_color || colorsMatch(j.primary_color, top.primary_color, strict)) &&
+           (!bottom.primary_color || colorsMatch(j.primary_color, bottom.primary_color, strict));
   }
 
-  /** 자켓 찾기 - 색상이 맞을 때만 포함 (안 맞으면 null 반환) */
-  function findBestJacket(top: Clothing, bottom: Clothing): Clothing | null {
+  /** 자켓 찾기 - 색상 매칭 필수 (없으면 null) */
+  function findBestJacket(top: Clothing, bottom: Clothing, strict = true): Clothing | null {
     if (jackets.length === 0) return null;
-    // 1순위: 미사용 + 상의·하의 모두와 색상 매칭
-    const unusedMatch = jackets.find((jk) => !usedJackets.has(jk.id) && jacketMatchesBoth(jk, top, bottom));
+    // 1순위: 미사용 + 색상 매칭
+    const unusedMatch = jackets.find((jk) => !usedJackets.has(jk.id) && jacketMatchesBoth(jk, top, bottom, strict));
     if (unusedMatch) return unusedMatch;
     // 2순위: 사용 여부 무관 + 색상 매칭
-    const anyMatch = jackets.find((jk) => jacketMatchesBoth(jk, top, bottom));
+    const anyMatch = jackets.find((jk) => jacketMatchesBoth(jk, top, bottom, strict));
     if (anyMatch) return anyMatch;
-    // 색상 매칭되는 자켓이 없으면 자켓 없이 진행 (강제 포함 X)
     return null;
   }
 
-  /** 상의+하의+자켓 조합 추가 (색상 매칭 여부에 따라 selective) */
+  /** 상의+하의+자켓 조합 추가 - 색상 매칭 항상 필수 */
   function tryAdd(top: Clothing, bottom: Clothing, strictColor = true): boolean {
     const key = `${top.id}_${bottom.id}`;
     if (usedPairs.has(key)) return false;
 
-    // 상의-하의 색상 매칭 (strict 모드에서만 검사)
-    if (strictColor && top.primary_color && bottom.primary_color && !colorsMatch(top.primary_color, bottom.primary_color)) return false;
+    // 상의-하의 색상 매칭 (필수, strict 여부에 따라 관대함 조정)
+    if (top.primary_color && bottom.primary_color && !colorsMatch(top.primary_color, bottom.primary_color, strictColor)) return false;
 
-    // 자켓: 날씨상 필요할 때만 포함
-    const jacket: Clothing | null = needJacket ? findBestJacket(top, bottom) : null;
+    // 자켓: 날씨상 필요할 때만 포함 (색상 매칭 필수)
+    const jacket: Clothing | null = needJacket ? findBestJacket(top, bottom, strictColor) : null;
 
     usedPairs.add(key);
     if (jacket) usedJackets.add(jacket.id);
@@ -202,29 +219,18 @@ export function generateRecommendations(
     }
   }
 
-  // Pass 3: 최후의 수단 - 색상 매칭 무시 (조합이 3개 안 나올 때)
+  // Pass 3: 관대한 색상 매칭 (여전히 색상 매칭 필수, 인접 톤도 허용)
   if (suggestions.length < 3) {
     for (const top of tops) {
       if (suggestions.length >= 3) break;
       for (const bottom of bottoms) {
         if (suggestions.length >= 3) break;
-        tryAdd(top, bottom, false);
+        tryAdd(top, bottom, false); // strict=false → 관대한 매칭 사용
       }
     }
   }
 
-  // Pass 4: 최종 안전장치 - 색상/날씨 다 무시하고 무조건 1개는 만든다
-  if (suggestions.length === 0 && allTops.length > 0 && allBottoms.length > 0) {
-    console.warn('[Recommend] Pass 1~3 실패, 최종 안전장치 발동');
-    const t = allTops[0];
-    const b = allBottoms[0];
-    suggestions.push({
-      top_id: t.id,
-      bottom_id: b.id,
-      jacket_id: null,
-      reason: '옷장 옷 조합',
-    });
-  }
+  // 색상 매칭이 안 되면 추천 개수가 3개보다 적을 수 있음 (그게 정상 - 색상 매칭 필수)
 
   console.log('[Recommend] 결과:', suggestions.length, '개 추천');
   return suggestions;
