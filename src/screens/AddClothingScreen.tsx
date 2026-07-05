@@ -191,7 +191,7 @@ export default function AddClothingScreen() {
 
       // 웹에서 배경 제거 (백그라운드, 실패해도 진행)
       if (Platform.OS === 'web') {
-        setStatus('배경 제거 중... (첫 등록은 20~40초)');
+        setStatus('배경 제거 중...');
         try {
           const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
           if (bgRemovedUrl) {

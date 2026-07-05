@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useSession } from './src/lib/auth';
 import { supabase } from './src/lib/supabase';
+import { preloadBackgroundRemoval } from './src/lib/bgRemove';
 import AuthScreen from './src/screens/AuthScreen';
 import WardrobeScreen from './src/screens/WardrobeScreen';
 import AddClothingScreen from './src/screens/AddClothingScreen';
@@ -95,6 +96,11 @@ export default function App() {
   const { session, loading } = useSession();
   const [profileChecked, setProfileChecked] = useState(false);
   const [needsProfile, setNeedsProfile] = useState(false);
+
+  // 앱 시작 시 배경 제거 라이브러리 백그라운드 로드 (한 번만)
+  useEffect(() => {
+    preloadBackgroundRemoval();
+  }, []);
 
   useEffect(() => {
     if (!session) {
