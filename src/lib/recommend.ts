@@ -47,26 +47,45 @@ export function generateRecommendations(
   weather: WeatherSnapshot,
   recentIds: Set<string>
 ): OutfitSuggestion[] {
-  // 우선 최근에 안 입은 옷 위주로
-  let available = clothes.filter((c) => !recentIds.has(c.id));
-  let tops = shuffle(available.filter((c) => c.category === 'top' && fitsWeather(c, weather)));
-  let bottoms = shuffle(available.filter((c) => c.category === 'bottom' && fitsWeather(c, weather)));
-  let jackets = shuffle(available.filter((c) => c.category === 'jacket' && fitsWeather(c, weather)));
+  console.log('[Recommend] input:', {
+    totalClothes: clothes.length,
+    tops: clothes.filter((c) => c.category === 'top').length,
+    bottoms: clothes.filter((c) => c.category === 'bottom').length,
+    jackets: clothes.filter((c) => c.category === 'jacket').length,
+    recentIds: recentIds.size,
+    weather,
+  });
 
-  // 상의나 하의 없으면 recent 필터 해제 (최근에 입었어도 다시 추천)
+  // 옷 자체가 없거나 상의/하의 중 하나라도 없으면 추천 불가
+  const allTops = clothes.filter((c) => c.category === 'top');
+  const allBottoms = clothes.filter((c) => c.category === 'bottom');
+  if (allTops.length === 0 || allBottoms.length === 0) {
+    console.warn('[Recommend] 상의 또는 하의가 없어서 추천 불가');
+    return [];
+  }
+
+  // 우선 최근에 안 입은 옷 + 날씨 매칭
+  let tops = shuffle(clothes.filter((c) => c.category === 'top' && !recentIds.has(c.id) && fitsWeather(c, weather)));
+  let bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && !recentIds.has(c.id) && fitsWeather(c, weather)));
+  let jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && !recentIds.has(c.id) && fitsWeather(c, weather)));
+
+  // 부족하면 recent 필터 해제
   if (tops.length === 0 || bottoms.length === 0) {
-    available = clothes;
+    console.log('[Recommend] recent 필터 해제');
     tops = shuffle(clothes.filter((c) => c.category === 'top' && fitsWeather(c, weather)));
     bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && fitsWeather(c, weather)));
     jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && fitsWeather(c, weather)));
   }
 
-  // 날씨 필터로 아무것도 안 남으면 날씨 조건도 해제 (온도 매칭 안 돼도 추천)
+  // 그래도 없으면 날씨 필터 해제 (모든 옷 사용)
   if (tops.length === 0 || bottoms.length === 0) {
-    tops = shuffle(clothes.filter((c) => c.category === 'top'));
-    bottoms = shuffle(clothes.filter((c) => c.category === 'bottom'));
+    console.log('[Recommend] 날씨 필터 해제 - 전체 사용');
+    tops = shuffle(allTops);
+    bottoms = shuffle(allBottoms);
     jackets = shuffle(clothes.filter((c) => c.category === 'jacket'));
   }
+
+  console.log('[Recommend] available:', { tops: tops.length, bottoms: bottoms.length, jackets: jackets.length });
 
   const tempDiff = weather.temp_max_c - weather.temp_min_c;
   const needJacket = weather.temp_min_c < 15 || tempDiff >= 10; // 최저 15°C 미만 또는 일교차 10°C 이상
@@ -194,5 +213,19 @@ export function generateRecommendations(
     }
   }
 
+  // Pass 4: 최종 안전장치 - 색상/날씨 다 무시하고 무조건 1개는 만든다
+  if (suggestions.length === 0 && allTops.length > 0 && allBottoms.length > 0) {
+    console.warn('[Recommend] Pass 1~3 실패, 최종 안전장치 발동');
+    const t = allTops[0];
+    const b = allBottoms[0];
+    suggestions.push({
+      top_id: t.id,
+      bottom_id: b.id,
+      jacket_id: null,
+      reason: '옷장 옷 조합',
+    });
+  }
+
+  console.log('[Recommend] 결과:', suggestions.length, '개 추천');
   return suggestions;
 }

@@ -131,7 +131,14 @@ export default function RecommendScreen() {
   /** Switch date: instant, no API calls */
   const generateForDay = (days: number) => {
     const w = getWeatherFromCache(days);
-    if (!w || !cachedClothes || !cachedRecentIds) return;
+    if (!w || !cachedClothes || !cachedRecentIds) {
+      console.log('[RecommendScreen] 데이터 준비 안 됨', {
+        hasWeather: !!w,
+        cachedClothes: cachedClothes?.length,
+        cachedRecentIds: cachedRecentIds?.size,
+      });
+      return;
+    }
 
     const target = new Date();
     target.setDate(target.getDate() + days);
@@ -139,7 +146,9 @@ export default function RecommendScreen() {
     setWeather(w);
     setConfirmed(new Set());
 
+    console.log('[RecommendScreen] 옷장 개수:', cachedClothes.length);
     const recs = generateRecommendations(cachedClothes, w, cachedRecentIds);
+    console.log('[RecommendScreen] 추천 개수:', recs.length);
     setSuggestions(recs);
 
     // Build clothesMap from pre-cached URLs (instant)
@@ -395,15 +404,35 @@ export default function RecommendScreen() {
           );
         })}
 
-        {!loading && suggestions.length === 0 && (
-          <View style={styles.emptyBox}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="shirt-outline" size={40} color="#C0BDB8" />
+        {!loading && suggestions.length === 0 && (() => {
+          const totalClothes = cachedClothes?.length ?? 0;
+          const topsCount = cachedClothes?.filter((c) => c.category === 'top').length ?? 0;
+          const bottomsCount = cachedClothes?.filter((c) => c.category === 'bottom').length ?? 0;
+          let title = '추천할 조합이 없어요';
+          let desc = '옷장에 상의와 하의를 추가하면\n맞춤 조합을 추천해 드릴게요.';
+          if (totalClothes === 0) {
+            title = '옷장이 비어있어요';
+            desc = '옷장 탭에서 옷을 등록해 주세요.';
+          } else if (topsCount === 0 && bottomsCount === 0) {
+            title = '상의와 하의가 필요해요';
+            desc = `현재 옷장: ${totalClothes}개\n상의와 하의를 각 1개 이상 등록해 주세요.`;
+          } else if (topsCount === 0) {
+            title = '상의가 없어요';
+            desc = `하의 ${bottomsCount}개 있음\n상의를 1개 이상 등록해 주세요.`;
+          } else if (bottomsCount === 0) {
+            title = '하의가 없어요';
+            desc = `상의 ${topsCount}개 있음\n하의를 1개 이상 등록해 주세요.`;
+          }
+          return (
+            <View style={styles.emptyBox}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="shirt-outline" size={40} color="#C0BDB8" />
+              </View>
+              <Text style={styles.emptyTitle}>{title}</Text>
+              <Text style={styles.emptyDesc}>{desc}</Text>
             </View>
-            <Text style={styles.emptyTitle}>추천할 조합이 없어요</Text>
-            <Text style={styles.emptyDesc}>옷장에 상의와 하의를 추가하면{'\n'}맞춤 조합을 추천해 드릴게요.</Text>
-          </View>
-        )}
+          );
+        })()}
       </View>
 
       {/* Note Modal */}
