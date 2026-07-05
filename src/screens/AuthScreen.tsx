@@ -55,15 +55,18 @@ export default function AuthScreen() {
       console.log(`[OAuth] redirectTo:`, redirectTo);
 
       // Kakao는 비즈 앱이 아니면 이메일 요청 불가 → 닉네임/프로필사진만 요청
-      const kakaoScopes = 'profile_nickname,profile_image';
+      const options: any = {
+        skipBrowserRedirect: true, // 우리가 수동으로 리다이렉트 (scope 조작 위해)
+        ...(redirectTo ? { redirectTo } : {}),
+      };
+      if (provider === 'kakao') {
+        options.scopes = 'profile_nickname profile_image';
+        options.queryParams = { scope: 'profile_nickname profile_image' };
+      }
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
-        options: {
-          ...(redirectTo ? { redirectTo } : {}),
-          skipBrowserRedirect: false,
-          ...(provider === 'kakao' ? { scopes: kakaoScopes } : {}),
-        },
+        options,
       });
 
       console.log(`[OAuth] response:`, { data, error });
@@ -71,9 +74,25 @@ export default function AuthScreen() {
       if (error) throw error;
       if (!data?.url) throw new Error('OAuth URL 없음 - Supabase에서 provider를 활성화해 주세요');
 
-      // 웹에서 수동 리다이렉트 (일부 브라우저에서 자동 리다이렉트가 안 될 수 있음)
+      let finalUrl = data.url;
+      console.log(`[OAuth] Supabase URL:`, finalUrl);
+
+      // Kakao의 경우: Supabase가 만든 URL에서 scope 파라미터를 강제 오버라이드
+      if (provider === 'kakao' && Platform.OS === 'web') {
+        try {
+          const url = new URL(finalUrl);
+          // scope 파라미터를 우리가 원하는 값으로 강제 설정
+          url.searchParams.set('scope', 'profile_nickname profile_image');
+          finalUrl = url.toString();
+          console.log(`[OAuth] Modified URL for Kakao:`, finalUrl);
+        } catch (e) {
+          console.warn('[OAuth] URL modification failed:', e);
+        }
+      }
+
+      // 웹에서 수동 리다이렉트
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.location.href = data.url;
+        window.location.href = finalUrl;
       }
     } catch (e: any) {
       console.error(`[OAuth] ${provider} failed:`, e);
