@@ -1,16 +1,19 @@
 /**
- * Web-only image crop modal using react-easy-crop.
- * On mobile native, we rely on expo-image-picker's allowsEditing.
+ * Web-only image crop modal using react-image-crop.
+ * Provides native photo-editor-like UX:
+ * - Drag corners/edges to resize crop area freely
+ * - Drag inside to move
+ * - Aspect ratio unlocked by default
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
-interface Area {
+interface PixelCrop {
   x: number;
   y: number;
   width: number;
   height: number;
+  unit: 'px' | '%';
 }
 
 interface Props {
@@ -20,49 +23,47 @@ interface Props {
   onComplete: (croppedUri: string) => void;
 }
 
-const ASPECT_RATIOS = [
-  { key: '1:1', label: '1:1', value: 1 },
-  { key: '3:4', label: '3:4', value: 3 / 4 },
-  { key: '4:3', label: '4:3', value: 4 / 3 },
-  { key: '9:16', label: '9:16', value: 9 / 16 },
-  { key: '16:9', label: '16:9', value: 16 / 9 },
-  { key: 'free', label: '자유', value: 0 }, // 0이면 aspect 무시 (자유 리사이즈)
-];
-
 export default function CropModal({ visible, imageUri, onCancel, onComplete }: Props) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [crop, setCrop] = useState<any>(undefined);
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [Cropper, setCropper] = useState<any>(null);
+  const [ReactCrop, setReactCrop] = useState<any>(null);
   const [loadError, setLoadError] = useState(false);
-  const [aspectKey, setAspectKey] = useState<string>('3:4');
-  const currentAspect = ASPECT_RATIOS.find((r) => r.key === aspectKey)?.value ?? 1;
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // Cropper 라이브러리 lazy load (웹에서만)
+  // react-image-crop 라이브러리 lazy load (웹에서만)
   useEffect(() => {
-    if (!visible || Platform.OS !== 'web' || Cropper) return;
+    if (!visible || Platform.OS !== 'web' || ReactCrop) return;
     let cancelled = false;
     (async () => {
       try {
-        const mod = await import('react-easy-crop');
+        // CSS는 자동으로 주입되지 않으니 직접 head에 추가
+        if (!document.querySelector('link[data-react-image-crop]')) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://cdn.jsdelivr.net/npm/react-image-crop@11.1.2/dist/ReactCrop.min.css';
+          link.setAttribute('data-react-image-crop', 'true');
+          document.head.appendChild(link);
+        }
+
+        const mod = await import('react-image-crop');
         if (cancelled) return;
-        const CropperComp = mod.default;
-        if (typeof CropperComp !== 'function') {
-          console.error('[CropModal] Cropper is not a component:', typeof CropperComp);
+        const Comp = mod.default;
+        if (typeof Comp !== 'function' && typeof Comp !== 'object') {
+          console.error('[CropModal] ReactCrop is invalid:', typeof Comp);
           setLoadError(true);
           return;
         }
-        setCropper(() => CropperComp);
+        setReactCrop(() => Comp);
       } catch (e) {
-        console.error('[CropModal] failed to load react-easy-crop:', e);
+        console.error('[CropModal] failed to load react-image-crop:', e);
         if (!cancelled) setLoadError(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [visible, Cropper]);
+  }, [visible, ReactCrop]);
 
-  // Crop 라이브러리 로드 실패 시 → crop 없이 그대로 진행
+  // 로드 실패 시 원본 그대로 진행
   useEffect(() => {
     if (loadError && imageUri && visible) {
       console.warn('[CropModal] crop unavailable, skipping to next step');
@@ -70,34 +71,60 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
     }
   }, [loadError, imageUri, visible, onComplete]);
 
-  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPx: Area) => {
-    setCroppedAreaPixels(croppedAreaPx);
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    imgRef.current = e.currentTarget;
+    const { width, height } = e.currentTarget;
+    // 초기 crop 영역: 이미지 전체
+    setCrop({
+      unit: 'px',
+      x: width * 0.05,
+      y: height * 0.05,
+      width: width * 0.9,
+      height: height * 0.9,
+    });
+    setCompletedCrop({
+      unit: 'px',
+      x: width * 0.05,
+      y: height * 0.05,
+      width: width * 0.9,
+      height: height * 0.9,
+    });
   }, []);
 
   const handleDone = useCallback(async () => {
-    if (!imageUri || !croppedAreaPixels) {
-      // crop 영역이 아직 계산 안 됐으면 원본 그대로 사용
+    if (!imageUri || !completedCrop || !imgRef.current) {
       if (imageUri) onComplete(imageUri);
       return;
     }
     setProcessing(true);
     try {
-      const croppedUri = await getCroppedImage(imageUri, croppedAreaPixels);
+      const croppedUri = await getCroppedImage(imgRef.current, completedCrop);
       onComplete(croppedUri);
     } catch (e) {
       console.error('[CropModal] crop failed:', e);
-      // 잘못됐어도 원본으로 계속 진행
-      onComplete(imageUri);
+      if (imageUri) onComplete(imageUri);
     } finally {
       setProcessing(false);
     }
-  }, [imageUri, croppedAreaPixels, onComplete]);
+  }, [imageUri, completedCrop, onComplete]);
+
+  const resetCrop = useCallback(() => {
+    if (!imgRef.current) return;
+    const { width, height } = imgRef.current;
+    setCrop({
+      unit: 'px',
+      x: 0,
+      y: 0,
+      width,
+      height,
+    });
+  }, []);
 
   if (!visible || !imageUri) return null;
   if (Platform.OS !== 'web') return null;
 
   // Cropper 로딩 중
-  if (!Cropper && !loadError) {
+  if (!ReactCrop && !loadError) {
     return (
       <View style={styles.overlay}>
         <View style={styles.loader}>
@@ -108,7 +135,6 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
     );
   }
 
-  // 로드 실패 → 자동으로 그대로 진행 (useEffect에서 처리됨)
   if (loadError) return null;
 
   return (
@@ -128,66 +154,32 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.cropArea, aspectKey === 'free' && { aspectRatio: 4 / 3 }, aspectKey !== 'free' && aspectKey !== '1:1' && { aspectRatio: currentAspect }]}>
-          <Cropper
-            image={imageUri}
+        <View style={styles.cropWrap}>
+          <ReactCrop
             crop={crop}
-            zoom={zoom}
-            {...(currentAspect > 0 ? { aspect: currentAspect } : { aspect: undefined })}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropComplete}
-            objectFit="contain"
-            showGrid={true}
-            restrictPosition={false}
-          />
-        </View>
-
-        {/* 비율 선택 */}
-        <View style={styles.aspectRow}>
-          {ASPECT_RATIOS.map((r) => (
-            <TouchableOpacity
-              key={r.key}
-              style={[styles.aspectChip, aspectKey === r.key && styles.aspectChipActive]}
-              onPress={() => {
-                setAspectKey(r.key);
-                setCrop({ x: 0, y: 0 });
-                setZoom(1);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.aspectChipText, aspectKey === r.key && styles.aspectChipTextActive]}>
-                {r.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+            onChange={(c: any) => setCrop(c)}
+            onComplete={(c: PixelCrop) => setCompletedCrop(c)}
+            keepSelection
+            minWidth={30}
+            minHeight={30}
+          >
+            <img
+              ref={(el: HTMLImageElement | null) => { if (el) imgRef.current = el; }}
+              src={imageUri}
+              alt="crop"
+              onLoad={onImageLoad}
+              style={{ maxWidth: '100%', maxHeight: 500, display: 'block' } as any}
+            />
+          </ReactCrop>
         </View>
 
         <View style={styles.controls}>
-          <Text style={styles.help}>비율을 선택하고 사진을 드래그·확대해서 옷 부분만 남기세요</Text>
-          <View style={styles.zoomButtons}>
-            <TouchableOpacity
-              style={styles.zoomBtn}
-              onPress={() => setZoom(Math.max(1, zoom - 0.2))}
-            >
-              <Ionicons name="remove" size={18} color="#1A1A1A" />
-              <Text style={styles.zoomBtnText}>축소</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.zoomBtn}
-              onPress={() => { setZoom(1); setCrop({ x: 0, y: 0 }); }}
-            >
-              <Ionicons name="refresh" size={18} color="#1A1A1A" />
-              <Text style={styles.zoomBtnText}>원본</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.zoomBtn}
-              onPress={() => setZoom(Math.min(3, zoom + 0.2))}
-            >
-              <Ionicons name="add" size={18} color="#1A1A1A" />
-              <Text style={styles.zoomBtnText}>확대</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.help}>
+            모서리·가장자리를 드래그해서 원하는 크기와 위치로 자유롭게 자르세요
+          </Text>
+          <TouchableOpacity style={styles.resetBtn} onPress={resetCrop}>
+            <Text style={styles.resetBtnText}>전체 선택 (원본)</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -195,18 +187,30 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
 }
 
 /** Canvas API를 사용해 실제로 이미지를 자름 */
-async function getCroppedImage(imageSrc: string, pixelCrop: Area): Promise<string> {
-  const image = await createImage(imageSrc);
+async function getCroppedImage(
+  image: HTMLImageElement,
+  crop: PixelCrop
+): Promise<string> {
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+
   const canvas = document.createElement('canvas');
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  canvas.width = Math.floor(crop.width * scaleX);
+  canvas.height = Math.floor(crop.height * scaleY);
+
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas context not available');
 
   ctx.drawImage(
     image,
-    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
-    0, 0, pixelCrop.width, pixelCrop.height
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
+    0,
+    0,
+    canvas.width,
+    canvas.height
   );
 
   return new Promise<string>((resolve, reject) => {
@@ -214,16 +218,6 @@ async function getCroppedImage(imageSrc: string, pixelCrop: Area): Promise<strin
       if (!blob) return reject(new Error('Canvas is empty'));
       resolve(URL.createObjectURL(blob));
     }, 'image/jpeg', 0.92);
-  });
-}
-
-function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener('load', () => resolve(image));
-    image.addEventListener('error', (e) => reject(e));
-    image.crossOrigin = 'anonymous';
-    image.src = url;
   });
 }
 
@@ -244,8 +238,8 @@ const styles = StyleSheet.create({
   },
   loaderText: { fontSize: 14, color: '#1A1A1A', fontWeight: '600' },
   container: {
-    width: '92%',
-    maxWidth: 500,
+    width: '94%',
+    maxWidth: 560,
     backgroundColor: '#fff',
     borderRadius: 20,
     overflow: 'hidden',
@@ -260,37 +254,20 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800', color: '#1A1A1A' },
   doneText: { color: '#1B6B4A', fontSize: 15, fontWeight: '700', textAlign: 'right' },
 
-  cropArea: {
-    width: '100%',
-    height: 400,
-    position: 'relative',
-    backgroundColor: '#000',
+  cropWrap: {
+    padding: 16,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center', justifyContent: 'center',
+    minHeight: 300,
   },
   controls: {
     padding: 16,
     backgroundColor: '#FAFAF8',
   },
-  help: { fontSize: 12, color: '#7A7570', textAlign: 'center', marginBottom: 12 },
-
-  aspectRow: {
-    flexDirection: 'row', gap: 6,
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: '#EDEAE6',
-    justifyContent: 'center', flexWrap: 'wrap',
+  help: { fontSize: 12, color: '#7A7570', textAlign: 'center', marginBottom: 12, lineHeight: 18 },
+  resetBtn: {
+    paddingVertical: 12, borderRadius: 10,
+    backgroundColor: '#F0EDEA', alignItems: 'center',
   },
-  aspectChip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-    backgroundColor: '#F0EDEA',
-    minWidth: 44, alignItems: 'center',
-  },
-  aspectChipActive: { backgroundColor: '#1B6B4A' },
-  aspectChipText: { fontSize: 12, fontWeight: '700', color: '#7A7570' },
-  aspectChipTextActive: { color: '#fff' },
-  zoomButtons: { flexDirection: 'row', gap: 8 },
-  zoomBtn: {
-    flex: 1, flexDirection: 'row', paddingVertical: 12, borderRadius: 10,
-    backgroundColor: '#F0EDEA', alignItems: 'center', justifyContent: 'center', gap: 4,
-  },
-  zoomBtnText: { color: '#1A1A1A', fontSize: 13, fontWeight: '700' },
+  resetBtnText: { color: '#1A1A1A', fontSize: 13, fontWeight: '700' },
 });
