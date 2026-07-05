@@ -104,19 +104,16 @@ export function generateRecommendations(
            (!bottom.primary_color || colorsMatch(j.primary_color, bottom.primary_color));
   }
 
-  /** 자켓 찾기 (색상 매칭 → 재사용 → 아무 자켓) */
+  /** 자켓 찾기 - 색상이 맞을 때만 포함 (안 맞으면 null 반환) */
   function findBestJacket(top: Clothing, bottom: Clothing): Clothing | null {
     if (jackets.length === 0) return null;
-    // 1순위: 미사용 + 색상 매칭
-    let j = jackets.find((jk) => !usedJackets.has(jk.id) && jacketMatchesBoth(jk, top, bottom));
-    if (j) return j;
+    // 1순위: 미사용 + 상의·하의 모두와 색상 매칭
+    const unusedMatch = jackets.find((jk) => !usedJackets.has(jk.id) && jacketMatchesBoth(jk, top, bottom));
+    if (unusedMatch) return unusedMatch;
     // 2순위: 사용 여부 무관 + 색상 매칭
-    j = jackets.find((jk) => jacketMatchesBoth(jk, top, bottom));
-    if (j) return j;
-    // 3순위 (needJacket일 때만): 매칭 안돼도 아무 자켓 (미사용 우선)
-    if (needJacket) {
-      return jackets.find((jk) => !usedJackets.has(jk.id)) ?? jackets[0];
-    }
+    const anyMatch = jackets.find((jk) => jacketMatchesBoth(jk, top, bottom));
+    if (anyMatch) return anyMatch;
+    // 색상 매칭되는 자켓이 없으면 자켓 없이 진행 (강제 포함 X)
     return null;
   }
 
