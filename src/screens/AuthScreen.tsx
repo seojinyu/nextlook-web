@@ -56,9 +56,9 @@ export default function AuthScreen() {
 
       const options: any = redirectTo ? { redirectTo } : {};
 
-      // Kakao는 비즈 앱이 아니면 email scope 사용 불가
+      // Kakao 비즈 앱 전환 완료 후 이메일 scope도 함께 요청
       if (provider === 'kakao') {
-        options.scopes = 'profile_nickname profile_image';
+        options.scopes = 'account_email profile_nickname profile_image';
       }
 
       const { data, error } = await supabase.auth.signInWithOAuth({
