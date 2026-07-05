@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -97,19 +97,45 @@ export default function WardrobeScreen() {
 
   const load = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      let query = supabase
         .from('clothes')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(200); // 최근 200개만 (메모리 보호)
+
+      if (userId) query = query.eq('user_id', userId);
+
+      const { data, error } = await query;
       if (error) throw error;
-      const withUrls = await Promise.all(
-        (data ?? []).map(async (c) => ({
-          ...(c as Clothing),
-          signedUrl: await getSignedUrl(c.image_path),
-        }))
-      );
+
+      // Signed URL을 배치로 처리 (동시 요청 수 제한)
+      const clothesList = data ?? [];
+      const withUrls: (Clothing & { signedUrl: string })[] = [];
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < clothesList.length; i += BATCH_SIZE) {
+        const batch = clothesList.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map(async (c: any) => {
+            try {
+              return {
+                ...(c as Clothing),
+                signedUrl: await getSignedUrl(c.image_path),
+              };
+            } catch (e) {
+              console.warn('signed URL 실패:', c.id, e);
+              return null;
+            }
+          })
+        );
+        results.forEach((r) => r && withUrls.push(r));
+      }
+
       setItems(withUrls);
     } catch (e: any) {
+      console.error('옷장 로드 실패:', e);
       Alert.alert('불러오기 실패', e.message ?? String(e));
     } finally {
       setLoading(false);
@@ -119,7 +145,7 @@ export default function WardrobeScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const filteredItems = items
+  const filteredItems = useMemo(() => items
     .filter((item) => {
       // 계절 필터
       if (seasonFilter !== 'all') {
@@ -151,7 +177,21 @@ export default function WardrobeScreen() {
       // category
       const order: Record<string, number> = { top: 0, bottom: 1, jacket: 2 };
       return (order[a.category] ?? 99) - (order[b.category] ?? 99);
-    });
+    }), [items, seasonFilter, searchQuery, sortBy]);
+
+  // 계절 필터 카운트 (한 번만 계산)
+  const seasonCounts = useMemo(() => {
+    const map: Record<string, number> = { all: items.length };
+    for (const f of SEASON_FILTERS) {
+      if (f.key === 'all') continue;
+      map[f.key] = items.filter((i) => {
+        const tags = i.season_tags ?? [];
+        if (f.key === 'spring_fall') return tags.includes('spring_fall') || tags.includes('spring') || tags.includes('fall');
+        return tags.includes(f.key);
+      }).length;
+    }
+    return map;
+  }, [items]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -285,13 +325,7 @@ export default function WardrobeScreen() {
       <View style={styles.filterRow}>
         {SEASON_FILTERS.map((f) => {
           const active = seasonFilter === f.key;
-          const count = f.key === 'all'
-            ? items.length
-            : items.filter((i) => {
-                const tags = i.season_tags ?? [];
-                if (f.key === 'spring_fall') return tags.includes('spring_fall') || tags.includes('spring') || tags.includes('fall');
-                return tags.includes(f.key);
-              }).length;
+          const count = seasonCounts[f.key] ?? 0;
           return (
             <TouchableOpacity
               key={f.key}
@@ -516,7 +550,12 @@ export default function WardrobeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FAFAF8' },
+  root: {
+    flex: 1,
+    backgroundColor: '#FAFAF8',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAF8' },
 
   header: {
