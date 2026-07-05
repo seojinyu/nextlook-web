@@ -2,20 +2,9 @@
  * Web-only image crop modal using react-easy-crop.
  * On mobile native, we rely on expo-image-picker's allowsEditing.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-// react-easy-crop 은 web 전용 컴포넌트라 web에서만 동적으로 로드
-let Cropper: any = null;
-if (Platform.OS === 'web') {
-  try {
-    // dynamic import를 통해 번들 문제 회피
-    Cropper = require('react-easy-crop').default;
-  } catch (e) {
-    console.warn('[CropModal] react-easy-crop load failed:', e);
-  }
-}
 
 interface Area {
   x: number;
@@ -36,32 +25,80 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [Cropper, setCropper] = useState<any>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  // Cropper 라이브러리 lazy load (웹에서만)
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web' || Cropper) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import('react-easy-crop');
+        if (cancelled) return;
+        const CropperComp = mod.default;
+        if (typeof CropperComp !== 'function') {
+          console.error('[CropModal] Cropper is not a component:', typeof CropperComp);
+          setLoadError(true);
+          return;
+        }
+        setCropper(() => CropperComp);
+      } catch (e) {
+        console.error('[CropModal] failed to load react-easy-crop:', e);
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [visible, Cropper]);
+
+  // Crop 라이브러리 로드 실패 시 → crop 없이 그대로 진행
+  useEffect(() => {
+    if (loadError && imageUri && visible) {
+      console.warn('[CropModal] crop unavailable, skipping to next step');
+      onComplete(imageUri);
+    }
+  }, [loadError, imageUri, visible, onComplete]);
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPx: Area) => {
     setCroppedAreaPixels(croppedAreaPx);
   }, []);
 
   const handleDone = useCallback(async () => {
-    if (!imageUri || !croppedAreaPixels) return;
+    if (!imageUri || !croppedAreaPixels) {
+      // crop 영역이 아직 계산 안 됐으면 원본 그대로 사용
+      if (imageUri) onComplete(imageUri);
+      return;
+    }
     setProcessing(true);
     try {
       const croppedUri = await getCroppedImage(imageUri, croppedAreaPixels);
       onComplete(croppedUri);
     } catch (e) {
       console.error('[CropModal] crop failed:', e);
-      onCancel();
+      // 잘못됐어도 원본으로 계속 진행
+      onComplete(imageUri);
     } finally {
       setProcessing(false);
     }
-  }, [imageUri, croppedAreaPixels, onComplete, onCancel]);
+  }, [imageUri, croppedAreaPixels, onComplete]);
 
   if (!visible || !imageUri) return null;
+  if (Platform.OS !== 'web') return null;
 
-  // Web에서만 동작 (mobile은 expo-image-picker의 allowsEditing 사용)
-  if (Platform.OS !== 'web' || !Cropper) {
-    // Fallback: crop 없이 바로 전달
-    return null;
+  // Cropper 로딩 중
+  if (!Cropper && !loadError) {
+    return (
+      <View style={styles.overlay}>
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color="#1B6B4A" />
+          <Text style={styles.loaderText}>사진 편집기 로드 중...</Text>
+        </View>
+      </View>
+    );
   }
+
+  // 로드 실패 → 자동으로 그대로 진행 (useEffect에서 처리됨)
+  if (loadError) return null;
 
   return (
     <View style={styles.overlay}>
@@ -95,31 +132,27 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
         </View>
 
         <View style={styles.controls}>
-          <Text style={styles.help}>사진을 드래그하고 손가락 (또는 스크롤)으로 확대해서 옷 부분만 남기세요</Text>
-          <View style={styles.zoomRow}>
-            <Ionicons name="remove-circle-outline" size={22} color="#7A7570" />
-            <View style={styles.slider}>
-              <View style={[styles.sliderFill, { width: `${((zoom - 1) / 2) * 100}%` }]} />
-            </View>
-            <Ionicons name="add-circle-outline" size={22} color="#7A7570" />
-          </View>
+          <Text style={styles.help}>사진을 드래그하고 확대/축소해서 옷 부분만 남기세요</Text>
           <View style={styles.zoomButtons}>
             <TouchableOpacity
               style={styles.zoomBtn}
               onPress={() => setZoom(Math.max(1, zoom - 0.2))}
             >
+              <Ionicons name="remove" size={18} color="#1A1A1A" />
               <Text style={styles.zoomBtnText}>축소</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.zoomBtn}
-              onPress={() => setZoom(1)}
+              onPress={() => { setZoom(1); setCrop({ x: 0, y: 0 }); }}
             >
+              <Ionicons name="refresh" size={18} color="#1A1A1A" />
               <Text style={styles.zoomBtnText}>원본</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.zoomBtn}
               onPress={() => setZoom(Math.min(3, zoom + 0.2))}
             >
+              <Ionicons name="add" size={18} color="#1A1A1A" />
               <Text style={styles.zoomBtnText}>확대</Text>
             </TouchableOpacity>
           </View>
@@ -170,6 +203,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     zIndex: 9999,
   },
+  loader: {
+    padding: 30,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loaderText: { fontSize: 14, color: '#1A1A1A', fontWeight: '600' },
   container: {
     width: '92%',
     maxWidth: 500,
@@ -198,15 +239,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAF8',
   },
   help: { fontSize: 12, color: '#7A7570', textAlign: 'center', marginBottom: 12 },
-  zoomRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  slider: {
-    flex: 1, height: 4, borderRadius: 2, backgroundColor: '#EDEAE6', overflow: 'hidden',
-  },
-  sliderFill: { height: 4, backgroundColor: '#1B6B4A' },
   zoomButtons: { flexDirection: 'row', gap: 8 },
   zoomBtn: {
-    flex: 1, paddingVertical: 10, borderRadius: 10,
-    backgroundColor: '#F0EDEA', alignItems: 'center',
+    flex: 1, flexDirection: 'row', paddingVertical: 12, borderRadius: 10,
+    backgroundColor: '#F0EDEA', alignItems: 'center', justifyContent: 'center', gap: 4,
   },
   zoomBtnText: { color: '#1A1A1A', fontSize: 13, fontWeight: '700' },
 });
