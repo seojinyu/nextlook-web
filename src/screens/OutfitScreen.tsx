@@ -522,13 +522,19 @@ const mannequinStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FAFAF8' },
+  root: {
+    flex: 1,
+    backgroundColor: '#FAFAF8',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAF8' },
 
   header: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: H_PAD,
     paddingBottom: 12, backgroundColor: '#fff',
     borderBottomWidth: 0.5, borderBottomColor: '#EDEAE6',
+    flexShrink: 0,
   },
   title: { fontSize: 22, fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.5 },
   subtitle: { fontSize: 12, color: '#7A7570', marginTop: 2 },
@@ -547,10 +553,15 @@ const styles = StyleSheet.create({
   periodScroll: {
     backgroundColor: '#fff',
     borderBottomWidth: 0.5, borderBottomColor: '#EDEAE6',
-    maxHeight: 64,
+    height: 64,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   periodScrollContent: {
-    paddingHorizontal: H_PAD, paddingVertical: 12, gap: 8, alignItems: 'center',
+    paddingHorizontal: H_PAD,
+    gap: 8,
+    alignItems: 'center',
+    height: 64,
   },
   periodChip: {
     flexDirection: 'row', alignItems: 'center',
