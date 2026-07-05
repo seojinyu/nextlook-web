@@ -514,7 +514,7 @@ function MannequinView({
   );
 }
 
-/** 매거진 화보 스타일 플랫레이 (웹 + 배경 제거된 이미지) */
+/** 매거진 화보 스타일 플랫레이 - 세로 정렬 (첨부 이미지 스타일) */
 function MagazineLayoutView({
   topItem, bottomItem, jacketItem,
 }: {
@@ -522,43 +522,41 @@ function MagazineLayoutView({
   bottomItem: (Clothing & { signedUrl: string }) | null;
   jacketItem: (Clothing & { signedUrl: string }) | null;
 }) {
-  // 코디 톤에 따른 배경 컬러 (앰버/베이지/그린 톤 중 선택)
-  const bgColor = pickBackgroundFromOutfit(topItem, bottomItem, jacketItem);
-
   return (
-    <View style={[styles.magazineRoot, { backgroundColor: bgColor }]}>
-      {/* 자켓 (좌측 상단) */}
-      {jacketItem && (
-        <Image
-          source={{ uri: jacketItem.signedUrl }}
-          style={styles.magazineJacket}
-          resizeMode="contain"
-        />
-      )}
+    <View style={styles.magazineRoot}>
+      {/* 상의 (자켓이 있으면 아우터 옆에 정렬) */}
+      <View style={styles.magazineTopRow}>
+        {topItem ? (
+          <Image
+            source={{ uri: topItem.signedUrl }}
+            style={styles.magazineTopImg}
+            resizeMode="contain"
+          />
+        ) : (
+          <View style={[styles.magazineTopImg, styles.magazineEmpty]}>
+            <Ionicons name="shirt-outline" size={40} color="#D5D0CB" />
+          </View>
+        )}
 
-      {/* 상의 (중앙 상단) */}
-      {topItem ? (
-        <Image
-          source={{ uri: topItem.signedUrl }}
-          style={[styles.magazineTop, !jacketItem && styles.magazineTopCenter]}
-          resizeMode="contain"
-        />
-      ) : (
-        <View style={[styles.magazineTop, styles.magazineEmpty]}>
-          <Ionicons name="shirt-outline" size={40} color="rgba(255,255,255,0.5)" />
-        </View>
-      )}
+        {jacketItem && (
+          <Image
+            source={{ uri: jacketItem.signedUrl }}
+            style={styles.magazineJacketImg}
+            resizeMode="contain"
+          />
+        )}
+      </View>
 
-      {/* 하의 (하단) */}
+      {/* 하의 (아래) */}
       {bottomItem ? (
         <Image
           source={{ uri: bottomItem.signedUrl }}
-          style={styles.magazineBottom}
+          style={styles.magazineBottomImg}
           resizeMode="contain"
         />
       ) : (
-        <View style={[styles.magazineBottom, styles.magazineEmpty]}>
-          <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.5)" />
+        <View style={[styles.magazineBottomImg, styles.magazineEmpty]}>
+          <Ionicons name="image-outline" size={40} color="#D5D0CB" />
         </View>
       )}
     </View>
@@ -644,35 +642,37 @@ const styles = StyleSheet.create({
   viewToggleBtnActive: { backgroundColor: BOTTEGA },
 
   // ─── 매거진 플랫레이 (웹, 배경 제거 이미지 전용) ───
+  // 첨부 이미지 스타일: 상의 위 / 하의 아래 세로 정렬
   magazineRoot: {
     width: '100%',
-    aspectRatio: 0.78,
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#FAFAF8',
     borderRadius: 20,
-    overflow: 'hidden',
-    position: 'relative',
-    alignSelf: 'center',
+    gap: 4,
   },
-  magazineJacket: {
-    position: 'absolute',
-    top: '6%', left: '5%',
-    width: '38%', height: '38%',
-    transform: [{ rotate: '-6deg' }],
+  magazineTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 6,
   },
-  magazineTop: {
-    position: 'absolute',
-    top: '4%', right: '5%',
-    width: '52%', height: '50%',
+  magazineTopImg: {
+    width: 180,
+    height: 180,
   },
-  magazineTopCenter: {
-    left: '24%', right: '24%',
+  magazineJacketImg: {
+    width: 100,
+    height: 100,
+    marginBottom: 10,
   },
-  magazineBottom: {
-    position: 'absolute',
-    bottom: '4%', left: '20%',
-    width: '60%', height: '55%',
+  magazineBottomImg: {
+    width: 180,
+    height: 220,
+    marginTop: -20,
   },
   magazineEmpty: {
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: '#F5F4F2',
     borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
   },
