@@ -104,7 +104,23 @@ export function generateRecommendations(
            (!bottom.primary_color || colorsMatch(j.primary_color, bottom.primary_color));
   }
 
-  /** 상의+하의+자켓 모두 날씨·색상 매칭되는 완전한 조합만 추가 */
+  /** 자켓 찾기 (색상 매칭 → 재사용 → 아무 자켓) */
+  function findBestJacket(top: Clothing, bottom: Clothing): Clothing | null {
+    if (jackets.length === 0) return null;
+    // 1순위: 미사용 + 색상 매칭
+    let j = jackets.find((jk) => !usedJackets.has(jk.id) && jacketMatchesBoth(jk, top, bottom));
+    if (j) return j;
+    // 2순위: 사용 여부 무관 + 색상 매칭
+    j = jackets.find((jk) => jacketMatchesBoth(jk, top, bottom));
+    if (j) return j;
+    // 3순위 (needJacket일 때만): 매칭 안돼도 아무 자켓 (미사용 우선)
+    if (needJacket) {
+      return jackets.find((jk) => !usedJackets.has(jk.id)) ?? jackets[0];
+    }
+    return null;
+  }
+
+  /** 상의+하의+자켓 조합 추가 */
   function tryAdd(top: Clothing, bottom: Clothing): boolean {
     const key = `${top.id}_${bottom.id}`;
     if (usedPairs.has(key)) return false;
@@ -112,17 +128,8 @@ export function generateRecommendations(
     // 상의-하의 색상 매칭
     if (top.primary_color && bottom.primary_color && !colorsMatch(top.primary_color, bottom.primary_color)) return false;
 
-    let jacket: Clothing | null = null;
-    if (needJacket && jackets.length > 0) {
-      // 아직 사용 안 된 자켓 중 색상 매칭되는 것 우선
-      jacket = jackets.find((j) => !usedJackets.has(j.id) && jacketMatchesBoth(j, top, bottom)) ?? null;
-      // 미사용 자켓이 없으면 — 색상이 실제로 매칭될 때만 기존 자켓 재사용 허용
-      if (!jacket) {
-        jacket = jackets.find((j) => jacketMatchesBoth(j, top, bottom)) ?? null;
-      }
-      // 매칭되는 자켓이 아예 없으면 이 조합 스킵
-      if (!jacket) return false;
-    }
+    // 자켓: 날씨상 필요할 때만 포함
+    const jacket: Clothing | null = needJacket ? findBestJacket(top, bottom) : null;
 
     usedPairs.add(key);
     if (jacket) usedJackets.add(jacket.id);

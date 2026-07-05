@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -58,11 +58,13 @@ export default function OutfitScreen() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
 
+      // 최근 100개만 로드 (메모리/성능 보호)
       const { data: logs, error } = await supabase
         .from('wear_log')
         .select('*')
         .eq('user_id', userData.user.id)
-        .order('worn_on', { ascending: false });
+        .order('worn_on', { ascending: false })
+        .limit(100);
       if (error) throw error;
 
       const allIds = new Set<string>();
@@ -76,14 +78,25 @@ export default function OutfitScreen() {
           .from('clothes')
           .select('*')
           .in('id', [...allIds]);
-        await Promise.all(
-          (clothes ?? []).map(async (c) => {
-            clothesMap.set(c.id, {
-              ...(c as Clothing),
-              signedUrl: await getSignedUrl(c.image_path),
-            });
-          })
-        );
+
+        // Signed URL을 배치로 처리 (동시 요청 수 제한)
+        const clothesList = clothes ?? [];
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < clothesList.length; i += BATCH_SIZE) {
+          const batch = clothesList.slice(i, i + BATCH_SIZE);
+          await Promise.all(
+            batch.map(async (c: any) => {
+              try {
+                clothesMap.set(c.id, {
+                  ...(c as Clothing),
+                  signedUrl: await getSignedUrl(c.image_path),
+                });
+              } catch (e) {
+                console.warn('signed URL 실패:', c.id, e);
+              }
+            })
+          );
+        }
       }
 
       const result: OutfitEntry[] = (logs ?? []).map((log: WearLog) => ({
@@ -95,6 +108,7 @@ export default function OutfitScreen() {
 
       setEntries(result);
     } catch (e: any) {
+      console.error('Outfit Memory 로드 실패:', e);
       Alert.alert('불러오기 실패', e.message ?? String(e));
     } finally {
       setLoading(false);
@@ -153,6 +167,38 @@ export default function OutfitScreen() {
     return `${y}.${m}.${day} (${weekday[dt.getDay()]})`;
   };
 
+  // 연도/월 필터 데이터 (매 렌더 계산 방지)
+  const periods = useMemo(() => {
+    if (entries.length === 0) return [];
+    const periodSet = new Map<string, number>();
+    entries.forEach((e) => {
+      const ym = e.log.worn_on.slice(0, 7);
+      periodSet.set(ym, (periodSet.get(ym) ?? 0) + 1);
+    });
+    return [...periodSet.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [entries]);
+
+  // 자주 입는 옷 TOP 3 (매 렌더 계산 방지)
+  const top3Items = useMemo(() => {
+    if (entries.length < 3) return [];
+    const counts = new Map<string, { item: typeof entries[0]['items'][0]; count: number }>();
+    entries.forEach((e) =>
+      e.items.forEach((it) => {
+        const cur = counts.get(it.id);
+        if (cur) cur.count += 1;
+        else counts.set(it.id, { item: it, count: 1 });
+      })
+    );
+    const top = [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 3);
+    return top.length > 0 && top[0].count >= 2 ? top : [];
+  }, [entries]);
+
+  // 필터링된 항목 (매 렌더 계산 방지)
+  const filteredEntries = useMemo(() => {
+    if (periodFilter === 'all') return entries;
+    return entries.filter((e) => e.log.worn_on.startsWith(periodFilter));
+  }, [entries, periodFilter]);
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -192,18 +238,7 @@ export default function OutfitScreen() {
       </View>
 
       {/* 연도/월 필터 */}
-      {(() => {
-        if (entries.length === 0) return null;
-        // 모든 entry의 연-월 추출
-        const periodSet = new Map<string, number>();
-        entries.forEach((e) => {
-          const ym = e.log.worn_on.slice(0, 7); // YYYY-MM
-          periodSet.set(ym, (periodSet.get(ym) ?? 0) + 1);
-        });
-        const periods = [...periodSet.entries()]
-          .sort((a, b) => b[0].localeCompare(a[0])); // 최신 순
-
-        return (
+      {periods.length > 0 && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -246,8 +281,7 @@ export default function OutfitScreen() {
               );
             })}
           </ScrollView>
-        );
-      })()}
+      )}
 
       <ScrollView
         contentContainerStyle={{
@@ -256,26 +290,14 @@ export default function OutfitScreen() {
           paddingBottom: insets.bottom + 80,
         }}
       >
-        {entries.length >= 3 && (() => {
-          // 자주 입는 옷 통계
-          const counts = new Map<string, { item: typeof entries[0]['items'][0]; count: number }>();
-          entries.forEach((e) =>
-            e.items.forEach((it) => {
-              const cur = counts.get(it.id);
-              if (cur) cur.count += 1;
-              else counts.set(it.id, { item: it, count: 1 });
-            })
-          );
-          const top3 = [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 3);
-          if (top3.length === 0 || top3[0].count < 2) return null;
-          return (
-            <View style={styles.statsCard}>
+        {top3Items.length > 0 && (
+          <View style={styles.statsCard}>
               <View style={styles.statsHeader}>
                 <Ionicons name="trending-up" size={16} color={NAVY} />
-                <Text style={styles.statsTitle}>자주 입는 옷 TOP {top3.length}</Text>
+                <Text style={styles.statsTitle}>자주 입는 옷 TOP {top3Items.length}</Text>
               </View>
               <View style={styles.statsRow}>
-                {top3.map((t, idx) => (
+                {top3Items.map((t, idx) => (
                   <View key={t.item.id} style={styles.statsItem}>
                     <View style={styles.statsRankBadge}>
                       <Text style={styles.statsRankText}>{idx + 1}</Text>
@@ -286,8 +308,7 @@ export default function OutfitScreen() {
                 ))}
               </View>
             </View>
-          );
-        })()}
+        )}
 
         {entries.length === 0 && (
           <View style={styles.emptyBox}>
@@ -302,7 +323,7 @@ export default function OutfitScreen() {
         )}
 
         {entries.length > 0 && periodFilter !== 'all' &&
-          entries.filter((e) => e.log.worn_on.startsWith(periodFilter)).length === 0 && (
+          filteredEntries.length === 0 && (
           <View style={styles.emptyBox}>
             <View style={styles.emptyIcon}>
               <Ionicons name="calendar-outline" size={40} color="#C0BDB8" />
@@ -311,9 +332,7 @@ export default function OutfitScreen() {
           </View>
         )}
 
-        {entries
-          .filter((entry) => periodFilter === 'all' || entry.log.worn_on.startsWith(periodFilter))
-          .map((entry) => {
+        {filteredEntries.map((entry) => {
           const w = entry.log.weather;
           const weatherIcon = w ? (WEATHER_ICON[w.condition] ?? 'partly-sunny') : 'partly-sunny';
 
