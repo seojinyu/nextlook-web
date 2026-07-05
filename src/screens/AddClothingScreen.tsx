@@ -21,6 +21,7 @@ import { supabase, uploadClothingImage, invokeEdge } from '../lib/supabase';
 import { fetchCurrentWeather } from '../lib/weather';
 import { removeBackgroundWeb } from '../lib/bgRemove';
 import { Platform } from 'react-native';
+import CropModal from '../components/CropModal';
 import type { ClothingCategory } from '../lib/types';
 
 const COLORS = [
@@ -93,6 +94,18 @@ export default function AddClothingScreen() {
   const [imageHash, setImageHash] = useState<string>('');
   const [derivedSeasonTags, setDerivedSeasonTags] = useState<string[]>(['spring_fall']);
 
+  const [cropUri, setCropUri] = useState<string | null>(null);
+
+  const startPipeline = (uri: string) => {
+    if (Platform.OS === 'web') {
+      // 웹에선 crop 모달 먼저 보여주기
+      setCropUri(uri);
+    } else {
+      // 모바일에선 expo-image-picker의 allowsEditing이 자체 crop UI 제공
+      processImage(uri);
+    }
+  };
+
   const takePhoto = async () => {
     if (Platform.OS !== 'web') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -100,26 +113,35 @@ export default function AddClothingScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: Platform.OS !== 'web', // 웹에서 편집 UI 비활성화 (호환 이슈)
+      quality: 0.9,
+      allowsEditing: Platform.OS !== 'web', // 모바일 native: 기본 crop UI 사용
     });
-    if (!result.canceled && result.assets?.[0]?.uri) processImage(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]?.uri) startPipeline(result.assets[0].uri);
   };
 
   const pickFromLibrary = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8,
-        allowsEditing: Platform.OS !== 'web', // 웹에서 편집 UI 비활성화
+        quality: 0.9,
+        allowsEditing: Platform.OS !== 'web', // 모바일 native: 기본 crop UI 사용
       });
       if (!result.canceled && result.assets?.[0]?.uri) {
-        processImage(result.assets[0].uri);
+        startPipeline(result.assets[0].uri);
       }
     } catch (e: any) {
       console.error('[pickFromLibrary] error:', e);
       Alert.alert('사진 선택 실패', e?.message ?? String(e));
     }
+  };
+
+  const handleCropComplete = (croppedUri: string) => {
+    setCropUri(null);
+    processImage(croppedUri);
+  };
+
+  const handleCropCancel = () => {
+    setCropUri(null);
   };
 
   const processImage = async (uri: string) => {
@@ -276,6 +298,12 @@ export default function AddClothingScreen() {
   if (step === 0) {
     return (
       <View style={styles.root}>
+        <CropModal
+          visible={!!cropUri}
+          imageUri={cropUri}
+          onCancel={handleCropCancel}
+          onComplete={handleCropComplete}
+        />
         <View style={styles.pickArea}>
           <LinearGradient
             colors={['#1A1A1A', '#2D2D2D']}
