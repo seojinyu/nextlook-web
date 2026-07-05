@@ -20,6 +20,15 @@ interface Props {
   onComplete: (croppedUri: string) => void;
 }
 
+const ASPECT_RATIOS = [
+  { key: '1:1', label: '1:1', value: 1 },
+  { key: '3:4', label: '3:4', value: 3 / 4 },
+  { key: '4:3', label: '4:3', value: 4 / 3 },
+  { key: '9:16', label: '9:16', value: 9 / 16 },
+  { key: '16:9', label: '16:9', value: 16 / 9 },
+  { key: 'free', label: '자유', value: 0 }, // 0이면 aspect 무시 (자유 리사이즈)
+];
+
 export default function CropModal({ visible, imageUri, onCancel, onComplete }: Props) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -27,6 +36,8 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
   const [processing, setProcessing] = useState(false);
   const [Cropper, setCropper] = useState<any>(null);
   const [loadError, setLoadError] = useState(false);
+  const [aspectKey, setAspectKey] = useState<string>('3:4');
+  const currentAspect = ASPECT_RATIOS.find((r) => r.key === aspectKey)?.value ?? 1;
 
   // Cropper 라이브러리 lazy load (웹에서만)
   useEffect(() => {
@@ -117,22 +128,43 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
           </TouchableOpacity>
         </View>
 
-        <View style={styles.cropArea}>
+        <View style={[styles.cropArea, aspectKey === 'free' && { aspectRatio: 4 / 3 }, aspectKey !== 'free' && aspectKey !== '1:1' && { aspectRatio: currentAspect }]}>
           <Cropper
             image={imageUri}
             crop={crop}
             zoom={zoom}
-            aspect={1}
+            {...(currentAspect > 0 ? { aspect: currentAspect } : { aspect: undefined })}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
             objectFit="contain"
             showGrid={true}
+            restrictPosition={false}
           />
         </View>
 
+        {/* 비율 선택 */}
+        <View style={styles.aspectRow}>
+          {ASPECT_RATIOS.map((r) => (
+            <TouchableOpacity
+              key={r.key}
+              style={[styles.aspectChip, aspectKey === r.key && styles.aspectChipActive]}
+              onPress={() => {
+                setAspectKey(r.key);
+                setCrop({ x: 0, y: 0 });
+                setZoom(1);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.aspectChipText, aspectKey === r.key && styles.aspectChipTextActive]}>
+                {r.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <View style={styles.controls}>
-          <Text style={styles.help}>사진을 드래그하고 확대/축소해서 옷 부분만 남기세요</Text>
+          <Text style={styles.help}>비율을 선택하고 사진을 드래그·확대해서 옷 부분만 남기세요</Text>
           <View style={styles.zoomButtons}>
             <TouchableOpacity
               style={styles.zoomBtn}
@@ -230,7 +262,7 @@ const styles = StyleSheet.create({
 
   cropArea: {
     width: '100%',
-    aspectRatio: 1,
+    height: 400,
     position: 'relative',
     backgroundColor: '#000',
   },
@@ -239,6 +271,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAF8',
   },
   help: { fontSize: 12, color: '#7A7570', textAlign: 'center', marginBottom: 12 },
+
+  aspectRow: {
+    flexDirection: 'row', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1, borderTopColor: '#EDEAE6',
+    justifyContent: 'center', flexWrap: 'wrap',
+  },
+  aspectChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+    backgroundColor: '#F0EDEA',
+    minWidth: 44, alignItems: 'center',
+  },
+  aspectChipActive: { backgroundColor: '#1B6B4A' },
+  aspectChipText: { fontSize: 12, fontWeight: '700', color: '#7A7570' },
+  aspectChipTextActive: { color: '#fff' },
   zoomButtons: { flexDirection: 'row', gap: 8 },
   zoomBtn: {
     flex: 1, flexDirection: 'row', paddingVertical: 12, borderRadius: 10,
