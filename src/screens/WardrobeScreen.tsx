@@ -105,7 +105,7 @@ export default function WardrobeScreen() {
         .from('clothes')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(200); // 최근 200개만 (메모리 보호)
+        .limit(100); // 최근 100개만 (모바일 메모리 보호)
 
       if (userId) query = query.eq('user_id', userId);
 
@@ -417,11 +417,12 @@ export default function WardrobeScreen() {
         columnWrapperStyle={{ gap: CARD_GAP }}
         contentContainerStyle={{ paddingHorizontal: CARD_PADDING, paddingTop: 4, paddingBottom: insets.bottom + 90, gap: CARD_GAP }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={AMBER} />}
-        // 성능 최적화 - 웹에서 크래시 방지
-        initialNumToRender={6}
-        maxToRenderPerBatch={4}
-        windowSize={5}
+        // 성능 최적화 - 모바일 크래시 방지 (더 aggressive)
+        initialNumToRender={4}
+        maxToRenderPerBatch={2}
+        windowSize={3}
         removeClippedSubviews={true}
+        updateCellsBatchingPeriod={100}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <View style={styles.emptyIcon}>

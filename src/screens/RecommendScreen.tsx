@@ -44,7 +44,17 @@ const DATE_CHIP_SIZE = 52;
 
 // Persistent caches (survive re-renders)
 let cachedCoords: { latitude: number; longitude: number } | null = null;
+// signedUrl 캐시는 크기 제한 (모바일 메모리 보호)
+const SIGNED_URL_CACHE_MAX = 200;
 const signedUrlCache = new Map<string, string>();
+function setCachedSignedUrl(key: string, value: string) {
+  if (signedUrlCache.size >= SIGNED_URL_CACHE_MAX) {
+    // 가장 오래된 것 제거
+    const firstKey = signedUrlCache.keys().next().value;
+    if (firstKey) signedUrlCache.delete(firstKey);
+  }
+  signedUrlCache.set(key, value);
+}
 let cachedClothes: Clothing[] | null = null;
 let cachedRecentIds: Set<string> | null = null;
 let cachedClothesUrlMap = new Map<string, Clothing & { signedUrl: string }>();
@@ -82,7 +92,7 @@ export default function RecommendScreen() {
     const cached = signedUrlCache.get(path);
     if (cached) return cached;
     const url = await getSignedUrl(path);
-    signedUrlCache.set(path, url);
+    setCachedSignedUrl(path, url);
     return url;
   };
 

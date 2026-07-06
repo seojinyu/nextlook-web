@@ -93,11 +93,18 @@ async function loadModule(): Promise<any> {
 }
 
 /**
- * 앱 시작 시 백그라운드에서 미리 라이브러리 로드
- * → 사용자가 실제로 옷 등록할 때 즉시 처리 시작
+ * 앱 시작 시 사전 로드 - 데스크탑에서만 실행
+ * 모바일은 메모리 부족으로 크래시 위험이 있어 실제 필요할 때 로드
  */
 export function preloadBackgroundRemoval(): void {
   if (Platform.OS !== 'web' || _modelPreloaded) return;
+  if (typeof navigator === 'undefined') return;
+  // 모바일에선 preload 안 함 (메모리 절약)
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+  if (isMobile) {
+    console.log('[bgRemove] 모바일 감지 - preload 스킵');
+    return;
+  }
   _modelPreloaded = true;
   console.log('[bgRemove] Preloading library in background...');
   loadModule().catch((e) => {
@@ -161,13 +168,13 @@ export async function removeBackgroundWeb(localUri: string): Promise<string | nu
       return null;
     }
 
-    // 3. 배경 제거 - 흰색 옷도 유지되는 balanced 모델 사용
-    // isnet_quint8은 빠르지만 흰색을 배경으로 오인함
-    // isnet_fp16은 흰색을 옷으로 정확히 인식 (약간 느리지만 정확)
-    console.log('[bgRemove] processing with balanced model (preserves whites)...');
+    // 3. 배경 제거 - 모바일에선 가벼운 모델, 데스크탑은 정확한 모델
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent || '');
+    const model = isMobile ? 'isnet_quint8' : 'isnet_fp16';
+    console.log(`[bgRemove] processing with ${model}...`);
     const blob: Blob = await removeBackground(resizedBlob, {
-      model: 'isnet_fp16', // 흰색 옷 인식 개선용 (약간 느리지만 정확)
-      output: { format: 'image/png', quality: 0.92 },
+      model,
+      output: { format: 'image/png', quality: 0.9 },
       debug: false,
       progress: (key: string, current: number, total: number) => {
         if (current === total) {
