@@ -214,7 +214,15 @@ export default function AddClothingScreen() {
       const loc = await Location.getCurrentPositionAsync({});
 
       const [analyzeResult, weather] = await Promise.all([
-        invokeEdge<{ name: string; hex: string; category?: string; season?: string; sleeve_length?: string }>('extract-color', { path }),
+        invokeEdge<{
+          name: string;
+          hex: string;
+          category?: string;
+          season?: string;
+          seasons?: string[];
+          sleeve_length?: string;
+          is_pattern?: boolean;
+        }>('extract-color', { path }),
         fetchCurrentWeather(loc.coords.latitude, loc.coords.longitude),
       ]);
 
@@ -236,10 +244,18 @@ export default function AddClothingScreen() {
         setDetectedSeason(szn);
       }
 
-      // Auto-derive multi-season tags based on category + season
+      // AI가 감지한 복수 계절 우선 사용, 없으면 카테고리+계절 규칙으로 유도
       const finalCat = (cat === 'top' || cat === 'bottom' || cat === 'jacket') ? cat : detectedCategory;
       const finalSzn = (szn === 'summer' || szn === 'winter' || szn === 'spring_fall') ? szn : detectedSeason;
-      setDerivedSeasonTags(deriveSeasonTags(finalCat, finalSzn));
+      const aiSeasons = Array.isArray(analyzeResult.seasons)
+        ? analyzeResult.seasons.filter((s) => ['summer', 'winter', 'spring_fall'].includes(s))
+        : [];
+      // 반팔/민소매 오버라이드
+      let finalSeasons = aiSeasons.length > 0 ? aiSeasons : deriveSeasonTags(finalCat, finalSzn);
+      if ((cat === 'top' || cat === 'jacket') && (analyzeResult.sleeve_length === 'short' || analyzeResult.sleeve_length === 'sleeveless')) {
+        finalSeasons = ['summer'];
+      }
+      setDerivedSeasonTags(finalSeasons);
 
       setWeatherData(weather);
       setStep(2);
@@ -384,17 +400,26 @@ export default function AddClothingScreen() {
           </View>
         </View>
 
-        {/* 계절 선택 */}
-        <Text style={styles.sectionTitle}>계절</Text>
+        {/* 계절 선택 (복수 선택 가능) */}
+        <Text style={styles.sectionTitle}>계절 (복수 선택 가능)</Text>
         <View style={styles.catRow}>
           {(['spring_fall', 'summer', 'winter'] as const).map((szn) => {
-            const active = detectedSeason === szn;
+            const active = derivedSeasonTags.includes(szn);
             const icons: Record<string, string> = { spring_fall: 'leaf-outline', summer: 'sunny-outline', winter: 'snow-outline' };
             return (
               <TouchableOpacity
                 key={szn}
                 style={[styles.catChip, active && styles.catChipActive]}
-                onPress={() => { setDetectedSeason(szn); setDerivedSeasonTags(deriveSeasonTags(detectedCategory, szn)); }}
+                onPress={() => {
+                  setDerivedSeasonTags((prev) => {
+                    if (prev.includes(szn)) {
+                      const next = prev.filter((s) => s !== szn);
+                      return next.length > 0 ? next : [szn]; // 최소 1개는 유지
+                    }
+                    return [...prev, szn];
+                  });
+                  setDetectedSeason(szn);
+                }}
                 activeOpacity={0.7}
               >
                 <Ionicons name={icons[szn] as any} size={15} color={active ? '#fff' : '#7A7570'} style={{ marginRight: 6 }} />

@@ -114,8 +114,17 @@ function extractDominantColor(data: Uint8Array, width: number, height: number): 
   };
 }
 
-async function detectCategoryAndSeason(imageBytes: Uint8Array): Promise<{ category: string; season: string; sleeve_length?: string }> {
-  if (!GEMINI_API_KEY) return { category: 'top', season: 'spring_fall' };
+interface AiAnalysis {
+  category: string;
+  seasons: string[]; // 복수 계절 지원
+  sleeve_length?: string;
+  color_name?: string; // AI가 감지한 색상 이름 (한국어)
+  is_pattern?: boolean; // 패턴/무늬 있는지
+}
+
+async function analyzeClothingWithGemini(imageBytes: Uint8Array): Promise<AiAnalysis> {
+  const defaultResult: AiAnalysis = { category: 'top', seasons: ['spring_fall'] };
+  if (!GEMINI_API_KEY) return defaultResult;
   try {
     const b64 = encodeBase64(imageBytes);
     const res = await fetch(
@@ -127,72 +136,138 @@ async function detectCategoryAndSeason(imageBytes: Uint8Array): Promise<{ catego
           contents: [{
             parts: [
               { inlineData: { mimeType: 'image/jpeg', data: b64 } },
-              { text: `This is a photo of a clothing item. Analyze it VERY CAREFULLY and reply with ONLY a JSON object, nothing else:
-{"category":"top or bottom or jacket","season":"summer or winter or spring_fall","sleeve_length":"short or long or sleeveless or none"}
+              { text: `You are a fashion expert. Analyze this clothing item photo and reply with ONLY a JSON object:
 
-STRICT RULES for season classification:
+{
+  "category": "top|bottom|jacket",
+  "seasons": ["summer", "spring_fall", "winter"],
+  "sleeve_length": "short|long|sleeveless|none",
+  "color": "블랙|화이트|그레이|라이트그레이|다크그레이|네이비|블루|라이트블루|레드|와인|핑크|베이지|크림|브라운|카키|그린|민트|옐로우|오렌지|퍼플",
+  "is_pattern": false
+}
 
-SUMMER (must classify as summer if ANY of these):
-- Short-sleeve t-shirts, tank tops, sleeveless tops
-- Shorts (any length above knee)
-- Skirts (mini/short)
-- Linen or very thin fabric
-- Cropped tops
-- Sundresses
+=== CATEGORY (CRITICAL - be very precise) ===
 
-WINTER:
-- Thick padded coats/jackets
-- Wool/fleece sweaters
-- Heavy knits
-- Turtlenecks with thick fabric
+TOP (상의) - Upper body clothing:
+  - T-shirts, blouses, shirts, polo shirts
+  - Sweaters (unless they're heavy outer layer)
+  - Hoodies, sweatshirts (unless it's clearly outer wear)
+  - Tank tops, cami tops
+  - Turtlenecks
+  KEY: If you can wear this as the primary top layer, it's TOP
 
-SPRING_FALL (default for middle-weight):
-- Long-sleeve shirts (not thick)
-- Light sweaters
-- Regular pants/jeans
-- Light jackets/cardigans
+BOTTOM (하의) - Lower body clothing:
+  - Pants, jeans, trousers, chinos
+  - Shorts (any length)
+  - Skirts (any length)
+  - Sweatpants, joggers
+  - Leggings
+  KEY: Covers lower body
 
-CATEGORY rules:
-- top: shirts, t-shirts, blouses, sweaters, hoodies (upper body)
-- bottom: pants, jeans, skirts, shorts (lower body)
-- jacket: coats, jackets, blazers, padded jackets, cardigans (outer layer)
+JACKET (자켓) - Outer layer clothing:
+  - Coats (long, trench, wool)
+  - Blazers, suit jackets
+  - Padded jackets, puffer jackets, down jackets
+  - Denim jackets, leather jackets, bomber jackets
+  - Cardigans (open front, outer wear style)
+  - Kimono-style outerwear
+  KEY: Designed to wear OVER other clothes
 
-SLEEVE_LENGTH (for tops/jackets):
-- short: short sleeves visible
-- long: long sleeves visible
-- sleeveless: no sleeves
-- none: not applicable (for bottoms)
+=== SEASONS (multi-select array, can have 1-3 items) ===
 
-Reply ONLY the JSON object.` },
+Rules for multi-season assignment:
+- Short-sleeve tops, tank tops, shorts, mini skirts → ["summer"]
+- Long-sleeve regular thickness tops, light sweaters → ["spring_fall", "winter"]
+- Very heavy items (thick padded coats, wool coats, chunky knits) → ["winter"] only
+- Light jackets, cardigans, blazers → ["spring_fall", "winter"]
+- Denim (jeans, jean jackets) → ["spring_fall", "winter"] (not summer unless clearly light-wash cropped)
+- Pants of medium weight → ["spring_fall", "winter"]
+
+Examples:
+- Cotton t-shirt: {"category":"top","seasons":["summer"],"sleeve_length":"short"}
+- Wool sweater: {"category":"top","seasons":["winter"],"sleeve_length":"long"}
+- Cardigan: {"category":"jacket","seasons":["spring_fall","winter"],"sleeve_length":"long"}
+- Jeans: {"category":"bottom","seasons":["spring_fall","winter"],"sleeve_length":"none"}
+- Shorts: {"category":"bottom","seasons":["summer"],"sleeve_length":"none"}
+- Padded winter coat: {"category":"jacket","seasons":["winter"],"sleeve_length":"long"}
+
+=== COLOR (choose exactly ONE closest match) ===
+
+Look at the DOMINANT color of the actual clothing (ignore any tags, hangers, backgrounds).
+
+- 블랙 (black): very dark, almost no lightness
+- 화이트 (white): very light, near-pure white
+- 그레이 (gray): pure gray between black and white
+- 라이트그레이: pale gray
+- 다크그레이: charcoal
+- 네이비: very dark blue
+- 블루: medium blue
+- 라이트블루: pale blue
+- 레드: pure red or bright red
+- 와인: dark red / burgundy
+- 핑크: pink or salmon
+- 베이지: warm neutral, tan
+- 크림: off-white, ivory
+- 브라운: brown, coffee
+- 카키: military green / olive
+- 그린: green
+- 민트: mint / pale green
+- 옐로우: yellow, mustard
+- 오렌지: orange, coral
+- 퍼플: purple, violet
+
+For multi-color/patterned items: pick the DOMINANT color.
+
+is_pattern: true if the item has visible patterns (stripes, checks, floral, prints), false if solid color.
+
+Reply ONLY the JSON object, no other text.` },
             ],
           }],
-          generationConfig: { temperature: 0, maxOutputTokens: 100 },
+          generationConfig: { temperature: 0, maxOutputTokens: 200 },
         }),
       }
     );
-    if (!res.ok) return { category: 'top', season: 'spring_fall' };
+    if (!res.ok) return defaultResult;
     const json = await res.json();
     const text = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-    let cat: string; let szn: string; let sleeve: string | undefined;
+    let cat: string; let seasons: string[]; let sleeve: string | undefined; let color: string | undefined; let pattern = false;
     try {
       const parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
       cat = ['top', 'bottom', 'jacket'].includes(parsed.category) ? parsed.category : 'top';
-      szn = ['summer', 'winter', 'spring_fall'].includes(parsed.season) ? parsed.season : 'spring_fall';
+
+      // seasons 배열 검증
+      const validSeasons = ['summer', 'winter', 'spring_fall'];
+      if (Array.isArray(parsed.seasons)) {
+        seasons = parsed.seasons.filter((s: string) => validSeasons.includes(s));
+        if (seasons.length === 0) seasons = ['spring_fall'];
+      } else if (typeof parsed.season === 'string' && validSeasons.includes(parsed.season)) {
+        seasons = [parsed.season];
+      } else {
+        seasons = ['spring_fall'];
+      }
+
       sleeve = parsed.sleeve_length;
+      color = parsed.color;
+      pattern = !!parsed.is_pattern;
     } catch {
-      cat = text.includes('bottom') ? 'bottom' : text.includes('jacket') ? 'jacket' : 'top';
-      szn = text.includes('summer') ? 'summer' : text.includes('winter') ? 'winter' : 'spring_fall';
-      sleeve = text.includes('"short"') ? 'short' : text.includes('sleeveless') ? 'sleeveless' : undefined;
+      // fallback: parse from text
+      cat = text.includes('"bottom"') ? 'bottom' : text.includes('"jacket"') ? 'jacket' : 'top';
+      seasons = ['spring_fall'];
+      if (text.includes('summer')) seasons.push('summer');
+      if (text.includes('winter')) seasons.push('winter');
+      seasons = [...new Set(seasons)];
+      sleeve = text.includes('short') ? 'short' : text.includes('sleeveless') ? 'sleeveless' : undefined;
     }
 
-    // 안전장치: 반팔/민소매 상의 → 강제로 여름
-    if (cat === 'top' && (sleeve === 'short' || sleeve === 'sleeveless')) {
-      szn = 'summer';
+    // 안전장치: 반팔/민소매 상의 → 여름 포함 강제
+    if ((cat === 'top' || cat === 'jacket') && (sleeve === 'short' || sleeve === 'sleeveless')) {
+      if (!seasons.includes('summer')) seasons = ['summer'];
     }
 
-    return { category: cat, season: szn, sleeve_length: sleeve };
-  } catch {
-    return { category: 'top', season: 'spring_fall' };
+    return { category: cat, seasons, sleeve_length: sleeve, color_name: color, is_pattern: pattern };
+  } catch (e) {
+    console.error('[Gemini] error:', e);
+    return defaultResult;
   }
 }
 
@@ -232,21 +307,42 @@ Deno.serve(async (req) => {
 
     const buffer = new Uint8Array(await file.arrayBuffer());
 
-    // Color extraction (pure JS) and category detection (Gemini) in parallel
+    // Color extraction (pure JS) and AI analysis (Gemini) in parallel
     const img = decode(buffer, { useTArray: true });
-    const [colorResult, aiResult] = await Promise.all([
+    const [pxColorResult, aiResult] = await Promise.all([
       Promise.resolve((() => {
         const { r, g, b } = extractDominantColor(img.data, img.width, img.height);
         return { ...closestColor(r, g, b), raw_rgb: { r, g, b } };
       })()),
-      detectCategoryAndSeason(buffer),
+      analyzeClothingWithGemini(buffer),
     ]);
 
+    // AI가 감지한 색상 이름을 우선 사용 (더 정확)
+    let finalColor = pxColorResult;
+    if (aiResult.color_name) {
+      const aiMatch = COLOR_MAP.find((c) => c[0] === aiResult.color_name);
+      if (aiMatch) {
+        finalColor = {
+          name: aiMatch[0],
+          hex: aiMatch[1],
+          raw_rgb: pxColorResult.raw_rgb, // 원본 RGB는 그대로
+        };
+        console.log(`[analyze] AI 색상 우선: ${aiMatch[0]} (픽셀: ${pxColorResult.name})`);
+      }
+    }
+
+    // 첫 번째 계절을 대표 season으로 (backward compat)
+    const primarySeason = aiResult.seasons[0] ?? 'spring_fall';
+
     return json({
-      ...colorResult,
+      ...finalColor,
       category: aiResult.category,
-      season: aiResult.season,
+      season: primarySeason, // backward compatibility
+      seasons: aiResult.seasons, // 새로운 배열
       sleeve_length: aiResult.sleeve_length,
+      is_pattern: aiResult.is_pattern,
+      color_name_ai: aiResult.color_name, // 디버깅용
+      color_name_pixel: pxColorResult.name, // 디버깅용
     });
   } catch (e) {
     return json({ error: 'internal', detail: String(e) }, 500);
