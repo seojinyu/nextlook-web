@@ -13,6 +13,7 @@ import {
   ScrollView,
   Dimensions,
   TextInput,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -219,23 +220,38 @@ export default function WardrobeScreen() {
   const confirmDelete = () => {
     const count = selectedIds.size;
     if (count === 0) return;
-    Alert.alert('삭제 확인', `${count}개의 옷을 삭제하시겠습니까?`, [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: deleteSelected },
-    ]);
+    confirm(
+      '삭제 확인',
+      `${count}개의 옷을 삭제하시겠습니까?`,
+      deleteSelected,
+      { confirmText: '삭제', destructive: true }
+    );
   };
 
   const deleteSelected = async () => {
     setDeleting(true);
     try {
       const selected = items.filter((i) => selectedIds.has(i.id));
-      await supabase.storage.from('clothes').remove(selected.map((s) => s.image_path));
+      // Storage 삭제 (원본 + 배경 제거 이미지)
+      const pathsToDelete: string[] = [];
+      selected.forEach((s) => {
+        pathsToDelete.push(s.image_path);
+        if ((s as any).processed_image_path) pathsToDelete.push((s as any).processed_image_path);
+      });
+      if (pathsToDelete.length > 0) {
+        await supabase.storage.from('clothes').remove(pathsToDelete);
+      }
       const { error } = await supabase.from('clothes').delete().in('id', selected.map((s) => s.id));
       if (error) throw error;
       exitSelectMode();
       load();
     } catch (e: any) {
-      Alert.alert('삭제 실패', e.message ?? String(e));
+      console.error('삭제 실패:', e);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`삭제 실패: ${e.message ?? String(e)}`);
+      } else {
+        Alert.alert('삭제 실패', e.message ?? String(e));
+      }
     } finally {
       setDeleting(false);
     }

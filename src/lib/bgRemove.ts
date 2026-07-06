@@ -161,12 +161,13 @@ export async function removeBackgroundWeb(localUri: string): Promise<string | nu
       return null;
     }
 
-    // 3. 빠른 모델로 배경 제거
-    console.log('[bgRemove] processing with fast model...');
+    // 3. 배경 제거 - 흰색 옷도 유지되는 balanced 모델 사용
+    // isnet_quint8은 빠르지만 흰색을 배경으로 오인함
+    // isnet_fp16은 흰색을 옷으로 정확히 인식 (약간 느리지만 정확)
+    console.log('[bgRemove] processing with balanced model (preserves whites)...');
     const blob: Blob = await removeBackground(resizedBlob, {
-      // 가장 빠른 quantized 모델 사용 (3-5배 빠름, 품질 약간 낮음)
-      model: 'isnet_quint8',
-      output: { format: 'image/png', quality: 0.9 },
+      model: 'isnet_fp16', // 흰색 옷 인식 개선용 (약간 느리지만 정확)
+      output: { format: 'image/png', quality: 0.92 },
       debug: false,
       progress: (key: string, current: number, total: number) => {
         if (current === total) {

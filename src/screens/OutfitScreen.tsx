@@ -120,20 +120,25 @@ export default function OutfitScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const deleteEntry = (logId: string) => {
-    Alert.alert('삭제', '이 아웃핏 기록을 삭제하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제', style: 'destructive', onPress: async () => {
-          try {
-            const { error } = await supabase.from('wear_log').delete().eq('id', logId);
-            if (error) throw error;
-            setEntries((prev) => prev.filter((e) => e.log.id !== logId));
-          } catch (e: any) {
+    confirm(
+      '코디 기록 삭제',
+      '이 아웃핏 기록을 삭제하시겠습니까?',
+      async () => {
+        try {
+          const { error } = await supabase.from('wear_log').delete().eq('id', logId);
+          if (error) throw error;
+          setEntries((prev) => prev.filter((e) => e.log.id !== logId));
+        } catch (e: any) {
+          console.error('삭제 실패:', e);
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert(`삭제 실패: ${e.message ?? String(e)}`);
+          } else {
             Alert.alert('삭제 실패', e.message ?? String(e));
           }
-        },
+        }
       },
-    ]);
+      { confirmText: '삭제', destructive: true }
+    );
   };
 
   const openNoteEditor = (logId: string, currentNote: string | null) => {
