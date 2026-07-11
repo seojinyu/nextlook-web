@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COMBO_LABELS } from '../constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COMBO_LABELS, BOTTEGA } from '../constants';
 import { getSlotSize } from '../helpers';
 import { styles } from '../styles';
 import MannequinView from './MannequinView';
@@ -20,13 +21,8 @@ interface Props {
 }
 
 function SuggestionCard({
-  suggestion: s,
-  index: i,
-  clothesMap,
-  viewMode,
-  confirming,
-  confirmed,
-  onConfirm,
+  suggestion: s, index: i, clothesMap, viewMode,
+  confirming, confirmed, onConfirm,
 }: Props) {
   const slotSize = getSlotSize(s);
   const slots: { label: string; id: string | null }[] = [
@@ -36,14 +32,72 @@ function SuggestionCard({
   if (s.jacket_id) slots.push({ label: '자켓', id: s.jacket_id });
 
   const pieceCount = [s.top_id, s.bottom_id, s.jacket_id].filter(Boolean).length;
+  const styleLabel = COMBO_LABELS[i] ?? String.fromCharCode(65 + i);
 
   return (
-    <View style={styles.suggestion}>
-      <View style={styles.sugTop}>
-        <View style={styles.comboBadge}>
-          <Text style={styles.comboBadgeText}>Style {COMBO_LABELS[i] ?? i + 1}</Text>
+    <View
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        padding: 18,
+        marginBottom: 18,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+        elevation: 4,
+      }}
+    >
+      {/* 카드 헤더 */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 14,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: '#1A1A1A',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 18,
+                fontWeight: '900',
+                letterSpacing: -0.5,
+              }}
+            >
+              {styleLabel}
+            </Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: 9, fontWeight: '700', color: BOTTEGA, letterSpacing: 1.5 }}>
+              STYLE
+            </Text>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '800',
+                color: '#1A1A1A',
+                letterSpacing: -0.3,
+              }}
+            >
+              Look {styleLabel}
+            </Text>
+          </View>
         </View>
-        <View style={styles.sugTopRight}>
+
+        {/* 컬러 도트 + 피스 카운트 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {[s.top_id, s.bottom_id, s.jacket_id].map((id, idx) => {
             if (!id) return null;
             const item = clothesMap.get(id);
@@ -51,17 +105,45 @@ function SuggestionCard({
             return (
               <View
                 key={idx}
-                style={[styles.colorDot, { backgroundColor: item.primary_color }]}
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 7,
+                  backgroundColor: item.primary_color,
+                  borderWidth: 1.5,
+                  borderColor: '#fff',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                }}
               />
             );
           })}
-          <View style={styles.itemCountChip}>
-            <Ionicons name="shirt-outline" size={11} color="#7A7570" />
-            <Text style={styles.itemCountText}>{pieceCount}피스</Text>
+          <View
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 8,
+              backgroundColor: '#F5F4F2',
+              marginLeft: 2,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '800',
+                color: '#7A7570',
+                letterSpacing: 0.5,
+              }}
+            >
+              {pieceCount} PCS
+            </Text>
           </View>
         </View>
       </View>
 
+      {/* 이미지 영역 */}
       {viewMode === 'grid' ? (
         <View style={styles.slots}>
           {slots.map((slot, si) => {
@@ -100,35 +182,62 @@ function SuggestionCard({
         />
       )}
 
+      {/* CTA 버튼 - 그라데이션 */}
       <TouchableOpacity
-        style={[styles.wearBtn, confirmed && styles.wearBtnDone]}
         onPress={() => onConfirm(i)}
         disabled={confirming !== null || confirmed}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
+        style={{ marginTop: 16, borderRadius: 16, overflow: 'hidden' }}
       >
-        {confirming === i ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : confirmed ? (
-          <View style={styles.wearBtnRow}>
-            <Ionicons name="checkmark-circle" size={16} color="#fff" />
-            <Text style={styles.wearBtnText}>  기록 완료!</Text>
-          </View>
-        ) : (
-          <View style={styles.wearBtnRow}>
-            <Ionicons name="checkmark" size={16} color="#fff" />
-            <Text style={styles.wearBtnText}>  이 조합 입을래요</Text>
-          </View>
-        )}
+        <LinearGradient
+          colors={confirmed ? ['#4A8B5C', '#3D724D'] : ['#1A1A1A', '#333333']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{
+            paddingVertical: 15,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 6,
+          }}
+        >
+          {confirming === i ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : confirmed ? (
+            <>
+              <Ionicons name="checkmark-circle" size={16} color="#fff" />
+              <Text
+                style={{
+                  color: '#fff',
+                  fontWeight: '800',
+                  fontSize: 13,
+                  letterSpacing: 1,
+                }}
+              >
+                SAVED
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontWeight: '800',
+                  fontSize: 13,
+                  letterSpacing: 1,
+                }}
+              >
+                WEAR THIS TODAY
+              </Text>
+              <Ionicons name="arrow-forward" size={16} color="#fff" />
+            </>
+          )}
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
 }
 
-/**
- * React.memo로 재렌더 방지.
- * 날짜 변경 시 3개 카드가 매번 새로 마운트되어 모바일 브라우저 메모리 초과로 크래시 나던 문제 해결.
- * suggestion 자체가 바뀌지 않았고 뷰모드·선택 상태가 그대로면 스킵한다.
- */
 export default memo(SuggestionCard, (prev, next) => {
   return (
     prev.viewMode === next.viewMode &&
