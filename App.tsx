@@ -39,6 +39,8 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        // 메모리 보호: 처음 방문 시에만 마운트 (lazy loading)
+        lazy: true,
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#EDEAE6',

@@ -37,23 +37,34 @@ export function useWardrobe() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const clothesList = data ?? [];
+      const clothesList = (data ?? []) as Clothing[];
       const withUrls: Item[] = [];
-      const BATCH_SIZE = 10;
-      for (let i = 0; i < clothesList.length; i += BATCH_SIZE) {
-        const batch = clothesList.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(
-          batch.map(async (c: any) => {
-            try {
-              const path = c.processed_image_path || c.image_path;
-              return { ...(c as Clothing), signedUrl: await getSignedUrl(path) };
-            } catch (e) {
-              console.warn('signed URL 실패:', c.id, e);
-              return null;
-            }
-          }),
-        );
-        results.forEach((r) => r && withUrls.push(r));
+
+      // 🚀 batch API - 100번 개별 fetch 대신 1번의 호출로 모든 signedUrl 획득
+      const paths = clothesList.map((c) => c.processed_image_path || c.image_path);
+      try {
+        const { data: urlData } = await supabase.storage
+          .from('clothes')
+          .createSignedUrls(paths, 3600);
+        const urlByPath = new Map<string, string>();
+        (urlData ?? []).forEach((u: any) => {
+          if (u.signedUrl && u.path) urlByPath.set(u.path, u.signedUrl);
+        });
+        clothesList.forEach((c) => {
+          const p = c.processed_image_path || c.image_path;
+          const url = urlByPath.get(p);
+          if (url) withUrls.push({ ...c, signedUrl: url });
+        });
+      } catch (batchErr) {
+        console.warn('[Wardrobe] batch signedUrl 실패, 개별 fallback:', batchErr);
+        for (const c of clothesList) {
+          try {
+            const p = c.processed_image_path || c.image_path;
+            withUrls.push({ ...c, signedUrl: await getSignedUrl(p) });
+          } catch (e) {
+            console.warn('signed URL 실패:', c.id, e);
+          }
+        }
       }
 
       setItems(withUrls);
