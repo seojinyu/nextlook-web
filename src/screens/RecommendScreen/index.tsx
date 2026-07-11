@@ -26,6 +26,8 @@ import SectionHeader from './components/SectionHeader';
 import SuggestionCard from './components/SuggestionCard';
 import EmptyState from './components/EmptyState';
 import NoteModal from './components/NoteModal';
+import InspirationSection from './components/InspirationSection';
+import { useInspiration } from './useInspiration';
 
 export default function RecommendScreen() {
   const insets = useSafeAreaInsets();
@@ -43,6 +45,8 @@ export default function RecommendScreen() {
     loading, weather, date, suggestions, clothesMap,
     selectDate, refresh, getCachedClothes,
   } = useRecommendData();
+
+  const inspiration = useInspiration(weather);
 
   const handleSelectDate = (days: number) => {
     setSelectedDays(days);
@@ -98,6 +102,13 @@ export default function RecommendScreen() {
         />
         {weather && <WeatherCard weather={weather} />}
       </View>
+
+      {/* 오늘의 스타일 영감 (외부 사진, 성별/날씨 맞춤) */}
+      <InspirationSection
+        loading={inspiration.loading}
+        error={inspiration.error}
+        images={inspiration.result?.images ?? null}
+      />
 
       <View style={{ paddingHorizontal: H_PAD }}>
         {!loading && suggestions.length > 0 && (
