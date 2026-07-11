@@ -8,7 +8,7 @@
  * - 이미지 개수: 100개 × 3장 = 300개 → 9개 × 3장 = 27개로 감소
  */
 import { useCallback, useMemo, useState } from 'react';
-import { View, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NAVY, H_PAD } from './constants';
@@ -26,7 +26,9 @@ import NoteEditModal from './components/NoteEditModal';
 
 export default function OutfitScreen() {
   const insets = useSafeAreaInsets();
-  const { loading, entries, deleteEntry, saveNote } = useOutfitData();
+  const {
+    loading, loadingMore, entries, hasMore, loadMore, deleteEntry, saveNote,
+  } = useOutfitData();
 
   const [periodFilter, setPeriodFilter] = useState('all');
   const [editLogId, setEditLogId] = useState<string | null>(null);
@@ -98,12 +100,28 @@ export default function OutfitScreen() {
           paddingTop: 8,
           paddingBottom: insets.bottom + 80,
         }}
-        // 가상화 튜닝 - 모바일 메모리 보호
-        initialNumToRender={3}
-        maxToRenderPerBatch={2}
-        windowSize={3}
+        // 가상화 튜닝 - 모바일 메모리 보호 (극도로 보수적)
+        initialNumToRender={2}
+        maxToRenderPerBatch={1}
+        windowSize={2}
         removeClippedSubviews
-        updateCellsBatchingPeriod={100}
+        updateCellsBatchingPeriod={150}
+        // 무한 스크롤 - 화면 끝에서 15개씩 추가 로드
+        onEndReached={periodFilter === 'all' ? loadMore : undefined}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={NAVY} />
+            </View>
+          ) : !hasMore && entries.length > 0 ? (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#A8A4A0', fontSize: 12 }}>
+                모든 기록을 다 봤어요
+              </Text>
+            </View>
+          ) : null
+        }
       />
 
       <NoteEditModal
