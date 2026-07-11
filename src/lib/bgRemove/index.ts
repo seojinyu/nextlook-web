@@ -35,14 +35,18 @@ export async function removeBackgroundWeb(localUri: string): Promise<string | nu
       return null;
     }
 
-    // 모바일은 가벼운 quint8 모델(메모리·속도 최적), 데스크탑은 정확한 fp16 모델
-    const model = isMobileUA() ? 'isnet_quint8' : 'isnet_fp16';
-    console.log(`[bgRemove] processing with ${model}...`);
+    // 정확도 우선: 모든 플랫폼에서 isnet_fp16 사용.
+    // quint8은 옷 경계(어깨/목선)를 배경으로 잘못 인식해서 옷이 잘려나가는 문제 있음.
+    // fp16은 20MB로 quint8(10MB)보다 크지만 옷 세부 정보 훨씬 정확.
+    const model = 'isnet_fp16';
+    console.log(`[bgRemove] processing with ${model} (mobile=${isMobileUA()})...`);
 
     const blob: Blob = await removeBackground(resizedBlob, {
       model,
       output: { format: 'image/png', quality: 0.9 },
       debug: false,
+      // Web Worker에서 처리 → 메인 스레드 블록 안 됨, 메모리 격리로 크래시 위험 감소
+      proxyToWorker: true,
       progress: (key: string, current: number, total: number) => {
         if (current === total) {
           console.log(`[bgRemove] ${key} complete (${((Date.now() - start) / 1000).toFixed(1)}s)`);

@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import { supabase, getSignedUrl } from '../../lib/supabase';
 import { prefetchForecast, getWeatherFromCache } from '../../lib/weather';
 import { generateRecommendations } from '../../lib/recommend';
+import { logMemory } from '../../lib/memoryMonitor';
 import type { Clothing, OutfitSuggestion, WeatherSnapshot } from '../../lib/types';
 import {
   cachedCoords, setCachedCoords,
@@ -48,7 +49,8 @@ export function useRecommendData() {
   const getCachedSignedUrl = useCallback(async (path: string) => {
     const cached = signedUrlCache.get(path);
     if (cached) return cached;
-    const url = await getSignedUrl(path);
+    // 추천 카드 마네킹 뷰용 600px 썸네일 (원본 대비 5~10배 작음)
+    const url = await getSignedUrl(path, 3600, { width: 600, quality: 80 });
     setCachedSignedUrl(path, url);
     return url;
   }, []);
@@ -131,6 +133,7 @@ export function useRecommendData() {
    *    모바일 브라우저 메모리 초과("탭 중지") 방지.
    */
   const initialLoad = useCallback(async () => {
+    logMemory('Recommend.initialLoad.start');
     setLoading(true);
     try {
       const [coords, userData] = await Promise.all([

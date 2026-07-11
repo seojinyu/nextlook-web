@@ -43,10 +43,27 @@ if (isWeb && typeof window !== 'undefined') {
   }
 }
 
-export async function getSignedUrl(path: string, expiresIn = 3600) {
+/**
+ * 이미지의 Signed URL을 반환한다.
+ *
+ * `transform` 옵션을 주면 Supabase Storage가 서버에서 리사이즈된 이미지를 반환한다.
+ * → 옷장 100개 같은 곳에서 원본(수 MB) 대신 썸네일(수십 KB)만 다운로드해
+ *   모바일 브라우저 메모리 초과("탭 중지")를 방지.
+ *
+ * 사용처별 권장 크기:
+ *  - 옷장 그리드: 400px
+ *  - 추천/메모리 마네킹 뷰: 600px
+ *  - 편집 모달 프리뷰: 800px
+ *  - 전체 화면 원본: transform 없이 호출
+ */
+export async function getSignedUrl(
+  path: string,
+  expiresIn = 3600,
+  transform?: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' },
+) {
   const { data, error } = await supabase.storage
     .from('clothes')
-    .createSignedUrl(path, expiresIn);
+    .createSignedUrl(path, expiresIn, transform ? { transform } : undefined);
   if (error) throw error;
   return data.signedUrl;
 }

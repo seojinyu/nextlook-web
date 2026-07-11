@@ -50,10 +50,9 @@ export function useOutfitData() {
             batch.map(async (c: any) => {
               try {
                 const path = c.processed_image_path || c.image_path;
-                clothesMap.set(c.id, {
-                  ...(c as Clothing),
-                  signedUrl: await getSignedUrl(path),
-                });
+                // 메모리 코디 카드용 600px 썸네일
+                const url = await getSignedUrl(path, 3600, { width: 600, quality: 80 });
+                clothesMap.set(c.id, { ...(c as Clothing), signedUrl: url });
               } catch (e) {
                 console.warn('signed URL 실패:', c.id, e);
               }
