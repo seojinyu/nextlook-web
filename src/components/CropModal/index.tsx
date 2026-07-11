@@ -51,13 +51,11 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
     return () => { cancelled = true; };
   }, [visible, ReactCrop]);
 
-  // 로드 실패 시 원본 그대로 진행
-  useEffect(() => {
-    if (loadError && imageUri && visible) {
-      console.warn('[CropModal] crop unavailable, skipping to next step');
-      onComplete(imageUri);
-    }
-  }, [loadError, imageUri, visible, onComplete]);
+  // 로드 실패 시 UI에서 재시도 또는 스킵 선택 (자동 스킵 X)
+  const retryLoad = useCallback(() => {
+    setLoadError(false);
+    setReactCrop(null);
+  }, []);
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     imgRef.current = e.currentTarget;
@@ -111,7 +109,59 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
     );
   }
 
-  if (loadError) return null;
+  if (loadError) {
+    return (
+      <View style={styles.overlay}>
+        <View style={styles.loader}>
+          <Text style={[styles.loaderText, { marginBottom: 8 }]}>
+            사진 편집기를 불러오지 못했어요
+          </Text>
+          <Text style={{ fontSize: 12, color: '#7A7570', textAlign: 'center', marginBottom: 16 }}>
+            인터넷 상태를 확인하고 다시 시도해 주세요.
+          </Text>
+          <TouchableOpacity
+            onPress={retryLoad}
+            style={{
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              borderRadius: 10,
+              backgroundColor: '#1B6B4A',
+              marginBottom: 8,
+              width: 180,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>다시 시도</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => imageUri && onComplete(imageUri)}
+            style={{
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              borderRadius: 10,
+              backgroundColor: '#F0EDEA',
+              marginBottom: 8,
+              width: 180,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#1A1A1A', fontWeight: '600' }}>자르기 없이 진행</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onCancel}
+            style={{
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              width: 180,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#7A7570', fontWeight: '600' }}>취소</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.overlay}>

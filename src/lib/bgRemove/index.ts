@@ -19,15 +19,6 @@ export { preloadBackgroundRemoval } from './moduleLoader';
 
 export async function removeBackgroundWeb(localUri: string): Promise<string | null> {
   if (Platform.OS !== 'web') return null;
-
-  // 🚫 모바일 브라우저는 배경 제거 완전 스킵.
-  // WASM 모델(~20MB) + 이미지 처리로 크래시("탭 중지") 유발 + 15~30초 지연.
-  // 원본 사진 그대로 저장하고, 배경 제거는 데스크탑에서만 실행.
-  if (isMobileUA()) {
-    console.log('[bgRemove] 모바일 감지 - 배경 제거 스킵 (원본만 저장)');
-    return null;
-  }
-
   const start = Date.now();
   console.log('[bgRemove] starting for uri:', localUri.substring(0, 60) + '...');
   try {
@@ -44,8 +35,8 @@ export async function removeBackgroundWeb(localUri: string): Promise<string | nu
       return null;
     }
 
-    // 데스크탑 전용 - 정확한 모델 사용
-    const model = 'isnet_fp16';
+    // 모바일은 가벼운 quint8 모델(메모리·속도 최적), 데스크탑은 정확한 fp16 모델
+    const model = isMobileUA() ? 'isnet_quint8' : 'isnet_fp16';
     console.log(`[bgRemove] processing with ${model}...`);
 
     const blob: Blob = await removeBackground(resizedBlob, {

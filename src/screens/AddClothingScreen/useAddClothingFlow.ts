@@ -132,23 +132,19 @@ export function useAddClothingFlow(onSaved: () => void) {
       const path = await uploadClothingImage(userData.user.id, resized.uri, 'image/jpeg');
       setUploadedPath(path);
 
-      // 웹 데스크탑 전용: 배경 제거 (모바일은 removeBackgroundWeb 내부에서 스킵됨)
+      // 웹 전용: 배경 제거 (모바일은 quint8 가벼운 모델, 데스크탑은 fp16 정확 모델)
       if (Platform.OS === 'web') {
-        const isMobile = typeof navigator !== 'undefined' &&
-          /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
-        if (!isMobile) {
-          setStatus('AI 필터링 중...');
-          try {
-            const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
-            if (bgRemovedUrl) {
-              setStatus('AI 필터링 완료, 저장 중...');
-              const newPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
-              setProcessedPath(newPath);
-              URL.revokeObjectURL(bgRemovedUrl);
-            }
-          } catch (e) {
-            console.warn('[AddClothing] AI 필터링 실패, 원본만 저장:', e);
+        setStatus('AI 필터링 중...');
+        try {
+          const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
+          if (bgRemovedUrl) {
+            setStatus('AI 필터링 완료, 저장 중...');
+            const newPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
+            setProcessedPath(newPath);
+            URL.revokeObjectURL(bgRemovedUrl);
           }
+        } catch (e) {
+          console.warn('[AddClothing] AI 필터링 실패, 원본만 저장:', e);
         }
       }
 
