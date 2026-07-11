@@ -1,14 +1,21 @@
 /**
  * OutfitScreen - 얇은 조정자
+ *
+ * 크래시 방지 설계:
+ * - FlatList 가상화로 화면에 보이는 항목만 마운트 (ScrollView는 전체 마운트)
+ * - initialNumToRender=3, windowSize=3 → 최대 ~9개 카드만 메모리 상주
+ * - React.memo(OutfitCard)로 재렌더 방지
+ * - 이미지 개수: 100개 × 3장 = 300개 → 9개 × 3장 = 27개로 감소
  */
-import { useMemo, useState } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NAVY, H_PAD } from './constants';
 import { styles } from './styles';
 import { useOutfitData } from './useOutfitData';
 import { computePeriods, computeTop3Items, filterByPeriod } from './helpers';
+import type { OutfitEntry } from './types';
 
 import Header from './components/Header';
 import PeriodFilter from './components/PeriodFilter';
@@ -32,10 +39,33 @@ export default function OutfitScreen() {
     [entries, periodFilter],
   );
 
-  const openNoteEditor = (logId: string, currentNote: string | null) => {
+  // useCallback으로 함수 참조 안정화 → OutfitCard의 React.memo가 정상 작동
+  const openNoteEditor = useCallback((logId: string, currentNote: string | null) => {
     setEditLogId(logId);
     setEditInitialNote(currentNote ?? '');
-  };
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: OutfitEntry }) => (
+      <OutfitCard entry={item} onDelete={deleteEntry} onEditNote={openNoteEditor} />
+    ),
+    [deleteEntry, openNoteEditor],
+  );
+
+  const keyExtractor = useCallback((item: OutfitEntry) => item.log.id, []);
+
+  const ListHeader = useMemo(
+    () => (
+      <>
+        <TopItemsCard items={top3Items} />
+        {entries.length === 0 && <EmptyState variant="no-entries" />}
+        {entries.length > 0 && periodFilter !== 'all' && filteredEntries.length === 0 && (
+          <EmptyState variant="no-period-match" />
+        )}
+      </>
+    ),
+    [top3Items, entries.length, periodFilter, filteredEntries.length],
+  );
 
   if (loading) {
     return (
@@ -58,29 +88,23 @@ export default function OutfitScreen() {
         />
       )}
 
-      <ScrollView
+      <FlatList
+        data={filteredEntries}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        ListHeaderComponent={ListHeader}
         contentContainerStyle={{
           paddingHorizontal: H_PAD,
           paddingTop: 8,
           paddingBottom: insets.bottom + 80,
         }}
-      >
-        <TopItemsCard items={top3Items} />
-
-        {entries.length === 0 && <EmptyState variant="no-entries" />}
-        {entries.length > 0 && periodFilter !== 'all' && filteredEntries.length === 0 && (
-          <EmptyState variant="no-period-match" />
-        )}
-
-        {filteredEntries.map((entry) => (
-          <OutfitCard
-            key={entry.log.id}
-            entry={entry}
-            onDelete={deleteEntry}
-            onEditNote={openNoteEditor}
-          />
-        ))}
-      </ScrollView>
+        // 가상화 튜닝 - 모바일 메모리 보호
+        initialNumToRender={3}
+        maxToRenderPerBatch={2}
+        windowSize={3}
+        removeClippedSubviews
+        updateCellsBatchingPeriod={100}
+      />
 
       <NoteEditModal
         visible={editLogId !== null}

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CONDITION_KR, NAVY } from '../constants';
@@ -12,7 +13,7 @@ interface Props {
   onEditNote: (logId: string, currentNote: string | null) => void;
 }
 
-export default function OutfitCard({ entry, onDelete, onEditNote }: Props) {
+function OutfitCard({ entry, onDelete, onEditNote }: Props) {
   const w = entry.log.weather;
   const weatherIcon = getWeatherIcon(w?.condition);
 
@@ -69,3 +70,18 @@ export default function OutfitCard({ entry, onDelete, onEditNote }: Props) {
     </View>
   );
 }
+
+/**
+ * React.memo로 재렌더 방지.
+ * 스크롤 시 다른 카드가 재렌더되어도 이 카드는 스킵 → 이미지 재로드 안 됨 → 메모리 안정.
+ * entry.log.id + note가 같고 콜백 참조 안정하면 스킵.
+ */
+export default memo(OutfitCard, (prev, next) => {
+  return (
+    prev.entry.log.id === next.entry.log.id &&
+    prev.entry.log.note === next.entry.log.note &&
+    prev.entry.items.length === next.entry.items.length &&
+    prev.onDelete === next.onDelete &&
+    prev.onEditNote === next.onEditNote
+  );
+});

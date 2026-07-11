@@ -4,11 +4,12 @@
  * - 항목 삭제
  * - 메모 수정
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getSignedUrl } from '../../lib/supabase';
 import { confirm } from '../../lib/confirm';
+import { logMemory } from '../../lib/memoryMonitor';
 import type { Clothing, WearLog } from '../../lib/types';
 import type { OutfitEntry } from './types';
 
@@ -17,17 +18,19 @@ export function useOutfitData() {
   const [entries, setEntries] = useState<OutfitEntry[]>([]);
 
   const load = useCallback(async () => {
+    logMemory('Outfit.load.start');
     setLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
 
+      // 100 → 50개로 축소 (메모리 보호)
       const { data: logs, error } = await supabase
         .from('wear_log')
         .select('*')
         .eq('user_id', userData.user.id)
         .order('worn_on', { ascending: false })
-        .limit(100);
+        .limit(50);
       if (error) throw error;
 
       const allIds = new Set<string>();
@@ -42,6 +45,9 @@ export function useOutfitData() {
           .select('*')
           .in('id', [...allIds]);
 
+        // signedUrl은 문자열이라 프리페치해도 메모리 영향 미미 (URL당 ~500B).
+        // 실제 메모리 이슈는 Image 컴포넌트가 이미지 데이터를 로드하는 것이고,
+        // 이는 FlatList 가상화가 해결함.
         const clothesList = clothes ?? [];
         const BATCH_SIZE = 10;
         for (let i = 0; i < clothesList.length; i += BATCH_SIZE) {
@@ -70,6 +76,7 @@ export function useOutfitData() {
       }));
 
       setEntries(result);
+      logMemory('Outfit.load.done');
     } catch (e: any) {
       console.error('Outfit Memory 로드 실패:', e);
       Alert.alert('불러오기 실패', e.message ?? String(e));
@@ -78,7 +85,17 @@ export function useOutfitData() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // 5초 이내 재방문은 스킵 - 탭 전환 시 매번 재로드 방지 (메모리 스파이크 원인)
+  const lastLoadRef = useRef(0);
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      if (now - lastLoadRef.current > 5000) {
+        lastLoadRef.current = now;
+        load();
+      }
+    }, [load]),
+  );
 
   const deleteEntry = useCallback((logId: string) => {
     confirm(
