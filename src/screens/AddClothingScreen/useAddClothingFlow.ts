@@ -56,9 +56,24 @@ export function useAddClothingFlow(onSaved: () => void) {
     setStep(0);
   };
 
-  const startPipeline = (uri: string) => {
-    if (Platform.OS === 'web') setCropUri(uri);
-    else processImage(uri);
+  const startPipeline = async (uri: string) => {
+    if (Platform.OS === 'web') {
+      // 웹 ImagePicker는 원본 크기(수 MB base64) 반환 → crop 로딩 느림
+      // 미리 1200px로 다운샘플해서 crop 화면이 빠르게 뜨도록
+      try {
+        const smaller = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        setCropUri(smaller.uri);
+      } catch (e) {
+        console.warn('[startPipeline] pre-resize 실패, 원본 사용:', e);
+        setCropUri(uri);
+      }
+    } else {
+      processImage(uri);
+    }
   };
 
   const takePhoto = async () => {

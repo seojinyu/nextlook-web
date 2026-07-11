@@ -41,21 +41,16 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
   const imgRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ handle: Handle; startX: number; startY: number; startBox: Box } | null>(null);
 
-  useEffect(() => {
-    if (imageUri) {
-      setImgLoaded(false);
-      setBox({ x: 0, y: 0, w: 0, h: 0 });
-    }
-  }, [imageUri]);
-
-  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
+  const applyLoadedImage = useCallback((img: HTMLImageElement) => {
     imgRef.current = img;
     const w = img.width;
     const h = img.height;
     console.log('[CropModal] 이미지 로드:', w, 'x', h, '(natural:', img.naturalWidth, 'x', img.naturalHeight, ')');
+    if (w === 0 || h === 0) {
+      console.warn('[CropModal] 이미지 크기 0 - 아직 렌더 전');
+      return false;
+    }
     setImgSize({ w, h });
-    // 초기 크롭: 이미지 90%
     setBox({
       x: w * 0.05,
       y: h * 0.05,
@@ -63,7 +58,52 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
       h: h * 0.9,
     });
     setImgLoaded(true);
+    return true;
   }, []);
+
+  useEffect(() => {
+    if (!imageUri) return;
+    setImgLoaded(false);
+    setBox({ x: 0, y: 0, w: 0, h: 0 });
+
+    // 캐시된 이미지 감지 - onLoad 이벤트가 발화하지 않을 수 있음
+    // 다음 프레임에 img 요소가 이미 로드되어 있는지 확인
+    const checkCached = () => {
+      const img = imgRef.current;
+      if (img && img.complete && img.naturalWidth > 0) {
+        console.log('[CropModal] 캐시된 이미지 감지, 즉시 적용');
+        applyLoadedImage(img);
+      }
+    };
+    const rafId = requestAnimationFrame(() => requestAnimationFrame(checkCached));
+    return () => cancelAnimationFrame(rafId);
+  }, [imageUri, applyLoadedImage]);
+
+  // 5초 안에 로드 안 되면 재시도 UI 표시
+  const [loadTimeout, setLoadTimeout] = useState(false);
+  useEffect(() => {
+    if (!visible || imgLoaded) {
+      setLoadTimeout(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (!imgLoaded) {
+        console.warn('[CropModal] 5초 로딩 초과');
+        setLoadTimeout(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [visible, imgLoaded, imageUri]);
+
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    applyLoadedImage(e.currentTarget);
+  }, [applyLoadedImage]);
+
+  const onImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error('[CropModal] 이미지 로드 실패:', imageUri?.substring(0, 60), e);
+    // 로드 실패 시 원본 URI를 그대로 다음 단계로 전달
+    if (imageUri) onComplete(imageUri);
+  }, [imageUri, onComplete]);
 
   const clampBox = (b: Box, imgW: number, imgH: number): Box => {
     const w = Math.max(MIN_SIZE, Math.min(b.w, imgW));
@@ -229,6 +269,7 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
               src={imageUri}
               alt="자를 사진"
               onLoad={onImageLoad}
+              onError={onImageError}
               draggable={false}
               style={{
                 display: 'block',
@@ -356,9 +397,42 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
             )}
           </div>
 
-          {!imgLoaded && (
-            <View style={{ position: 'absolute', top: '50%' } as any}>
+          {!imgLoaded && !loadTimeout && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                alignItems: 'center', justifyContent: 'center',
+              } as any}
+            >
               <ActivityIndicator size="large" color="#1B6B4A" />
+              <Text style={{ color: '#fff', marginTop: 8, fontSize: 12 }}>
+                이미지 불러오는 중...
+              </Text>
+            </View>
+          )}
+
+          {!imgLoaded && loadTimeout && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                alignItems: 'center', justifyContent: 'center',
+                paddingHorizontal: 24,
+              } as any}
+            >
+              <Text style={{ color: '#fff', marginBottom: 16, textAlign: 'center' }}>
+                이미지 로딩이 오래 걸려요
+              </Text>
+              <TouchableOpacity
+                onPress={() => imageUri && onComplete(imageUri)}
+                style={{
+                  paddingHorizontal: 20, paddingVertical: 12,
+                  borderRadius: 10, backgroundColor: '#1B6B4A',
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>자르기 없이 진행</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
