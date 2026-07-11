@@ -8,7 +8,7 @@
  * 캐시 → cache.ts
  * 순수 함수 → helpers.ts
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, Text, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -50,10 +50,11 @@ export default function RecommendScreen() {
     setConfirmed(new Set());
   };
 
-  const openNoteModal = (idx: number) => {
+  // React.memo가 걸린 SuggestionCard의 재렌더를 막기 위해 참조 안정화
+  const openNoteModal = useCallback((idx: number) => {
     setNoteText('');
     setNoteModalIdx(idx);
-  };
+  }, []);
 
   const saveWearLog = async () => {
     if (noteModalIdx === null) return;

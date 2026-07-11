@@ -70,21 +70,34 @@ export function useRecommendData() {
     setDate(target.toISOString().slice(0, 10));
     setWeather(w);
 
-    console.log('[RecommendScreen] 옷장 개수:', cachedClothes.length);
-    const recs = generateRecommendations(cachedClothes, w, cachedRecentIds);
-    console.log('[RecommendScreen] 추천 개수:', recs.length);
-    setSuggestions(recs);
+    // 이전 카드를 먼저 언마운트해 이미지 텍스처를 해제한다.
+    // 그러지 않으면 삼성 인터넷/네이버 인앱 브라우저에서 메모리 초과로 탭이 중지됨.
+    setSuggestions([]);
+    setClothesMap(new Map());
 
-    const m = new Map<string, Clothing & { signedUrl: string }>();
-    recs.forEach((s) => {
-      [s.top_id, s.bottom_id, s.jacket_id].forEach((id) => {
-        if (id) {
-          const item = cachedClothesUrlMap.get(id);
-          if (item) m.set(id, item);
-        }
+    // 다음 프레임에 새 카드 마운트 — 브라우저가 old 이미지를 회수할 시간을 준다.
+    const build = () => {
+      console.log('[RecommendScreen] 옷장 개수:', cachedClothes!.length);
+      const recs = generateRecommendations(cachedClothes!, w, cachedRecentIds!);
+      console.log('[RecommendScreen] 추천 개수:', recs.length);
+
+      const m = new Map<string, Clothing & { signedUrl: string }>();
+      recs.forEach((s) => {
+        [s.top_id, s.bottom_id, s.jacket_id].forEach((id) => {
+          if (id) {
+            const item = cachedClothesUrlMap.get(id);
+            if (item) m.set(id, item);
+          }
+        });
       });
-    });
-    setClothesMap(m);
+      setSuggestions(recs);
+      setClothesMap(m);
+    };
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => requestAnimationFrame(build));
+    } else {
+      setTimeout(build, 50);
+    }
   }, []);
 
   /** 첫 로드: 위치 · 옷장 · 최근 · 날씨 전부 프리페치 */

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COMBO_LABELS } from '../constants';
@@ -18,7 +19,7 @@ interface Props {
   onConfirm: (index: number) => void;
 }
 
-export default function SuggestionCard({
+function SuggestionCard({
   suggestion: s,
   index: i,
   clothesMap,
@@ -122,3 +123,22 @@ export default function SuggestionCard({
     </View>
   );
 }
+
+/**
+ * React.memo로 재렌더 방지.
+ * 날짜 변경 시 3개 카드가 매번 새로 마운트되어 모바일 브라우저 메모리 초과로 크래시 나던 문제 해결.
+ * suggestion 자체가 바뀌지 않았고 뷰모드·선택 상태가 그대로면 스킵한다.
+ */
+export default memo(SuggestionCard, (prev, next) => {
+  return (
+    prev.viewMode === next.viewMode &&
+    prev.confirmed === next.confirmed &&
+    prev.confirming === next.confirming &&
+    prev.index === next.index &&
+    prev.suggestion.top_id === next.suggestion.top_id &&
+    prev.suggestion.bottom_id === next.suggestion.bottom_id &&
+    prev.suggestion.jacket_id === next.suggestion.jacket_id &&
+    prev.clothesMap === next.clothesMap &&
+    prev.onConfirm === next.onConfirm
+  );
+});
