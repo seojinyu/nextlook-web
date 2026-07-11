@@ -69,11 +69,12 @@ Deno.serve(async (req) => {
       return json({ cached: true, ...existing });
     }
 
-    // 2) 없으면 API로 fetch
-    const query = buildQuery(body);
-    console.log('[daily-inspiration] query:', query);
+    // 2) 없으면 API로 fetch (날짜 + user_id를 시드로 사용해 다양성 확보)
+    const dateSeed = `${today}-${userId}`;
+    const query = buildQuery(body, dateSeed);
+    console.log('[daily-inspiration] query:', query, '/ seed:', dateSeed);
 
-    const images = await fetchImages(query, 3);
+    const images = await fetchImages(query, 3, dateSeed);
 
     if (images.length === 0) {
       return json({ error: '이미지를 찾지 못했어요' }, 502);
@@ -113,8 +114,8 @@ function json(payload: unknown, status = 200) {
   });
 }
 
-/** 성별 · 계절 · 날씨 → 검색 쿼리 */
-function buildQuery(body: RequestBody): string {
+/** 성별 · 계절 · 날씨 → 다양성 있는 검색 쿼리 */
+function buildQuery(body: RequestBody, dateSeed: string): string {
   const genderPart =
     body.gender === 'male' ? 'men' :
     body.gender === 'female' ? 'women' : 'unisex';
@@ -124,53 +125,98 @@ function buildQuery(body: RequestBody): string {
     body.season === 'winter' ? 'winter' : 'autumn';
 
   const conditionPart = weatherKeyword(body.weather_condition, body.temp_avg);
+  const tempPart = temperatureKeyword(body.temp_avg);
 
-  // 스타일 다양성을 위한 랜덤 요소
-  const styles = ['casual', 'street', 'smart casual', 'minimal'];
-  const style = styles[Math.floor(Math.random() * styles.length)];
+  // 날짜를 시드로 결정적 랜덤 → 같은 날짜엔 같은 스타일, 다른 날짜엔 다른 스타일
+  const styles = [
+    'casual', 'street style', 'smart casual', 'minimal',
+    'trendy', 'modern', 'chic', 'daily', 'lookbook',
+  ];
+  const styleIdx = hashSeed(dateSeed + '-style') % styles.length;
+  const style = styles[styleIdx];
 
-  return `${genderPart} ${seasonPart} ${conditionPart} ${style} outfit fashion`.trim();
+  const settings = ['ootd', 'fashion', 'style', 'outfit'];
+  const settingIdx = hashSeed(dateSeed + '-setting') % settings.length;
+  const setting = settings[settingIdx];
+
+  return `${genderPart} ${seasonPart} ${conditionPart} ${tempPart} ${style} ${setting}`
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function weatherKeyword(condition: string, temp: number): string {
-  if (condition === 'Rain' || condition === 'Drizzle') return 'rainy day';
-  if (condition === 'Snow') return 'snowy';
+  if (condition === 'Rain' || condition === 'Drizzle') return 'rainy';
+  if (condition === 'Snow') return 'snowy winter';
   if (condition === 'Thunderstorm') return 'rainy';
-  if (temp >= 28) return 'hot weather';
-  if (temp <= 5) return 'cold weather';
+  if (condition === 'Clouds') return 'cloudy';
+  if (condition === 'Clear' && temp >= 25) return 'sunny';
   return '';
 }
 
-/** Unsplash + Pexels에서 각각 fetch해 병합 */
-async function fetchImages(query: string, count: number): Promise<InspirationImage[]> {
+function temperatureKeyword(temp: number): string {
+  if (temp >= 30) return 'summer heat lightweight';
+  if (temp >= 25) return 'warm sunny';
+  if (temp >= 20) return 'mild';
+  if (temp >= 15) return 'cool layered';
+  if (temp >= 10) return 'chilly jacket';
+  if (temp >= 5) return 'cold winter coat';
+  return 'freezing puffer';
+}
+
+/** 문자열 → 양수 해시 (결정적 랜덤 시드) */
+function hashSeed(s: string): number {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+/** Fisher-Yates 셔플 (시드 기반, 결정적) */
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  const a = [...arr];
+  let seedNum = hashSeed(seed);
+  for (let i = a.length - 1; i > 0; i--) {
+    seedNum = (seedNum * 9301 + 49297) % 233280;
+    const j = seedNum % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Unsplash + Pexels에서 넉넉하게 fetch → 시드 기반 셔플 → 3장 선택.
+ * 같은 검색어라도 매일 다른 페이지·다른 순서로 뽑아서 결과에 다양성.
+ */
+async function fetchImages(query: string, count: number, dateSeed: string): Promise<InspirationImage[]> {
+  // 날짜별로 다른 페이지 (1~4) 요청 → 매일 다른 사진 pool
+  const page = (hashSeed(dateSeed + '-page') % 4) + 1;
+
   const [unsplash, pexels] = await Promise.all([
-    fetchUnsplash(query, Math.ceil(count / 2)).catch((e) => {
+    fetchUnsplash(query, 15, page).catch((e) => {
       console.warn('[unsplash] fail:', e);
       return [] as InspirationImage[];
     }),
-    fetchPexels(query, Math.ceil(count / 2) + 1).catch((e) => {
+    fetchPexels(query, 15, page).catch((e) => {
       console.warn('[pexels] fail:', e);
       return [] as InspirationImage[];
     }),
   ]);
 
-  // 두 소스 결과 교차 배치
-  const merged: InspirationImage[] = [];
-  const maxLen = Math.max(unsplash.length, pexels.length);
-  for (let i = 0; i < maxLen; i++) {
-    if (unsplash[i]) merged.push(unsplash[i]);
-    if (pexels[i]) merged.push(pexels[i]);
-  }
-  return merged.slice(0, count);
+  // 두 소스 합쳐서 시드 셔플 후 count 개 선택
+  const combined = [...unsplash, ...pexels];
+  const shuffled = seededShuffle(combined, dateSeed);
+  return shuffled.slice(0, count);
 }
 
-async function fetchUnsplash(query: string, perPage: number): Promise<InspirationImage[]> {
+async function fetchUnsplash(query: string, perPage: number, page: number): Promise<InspirationImage[]> {
   const key = Deno.env.get('UNSPLASH_ACCESS_KEY');
   if (!key) {
     console.warn('[unsplash] no key');
     return [];
   }
-  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=portrait`;
+  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${perPage}&page=${page}&orientation=portrait`;
   const res = await fetch(url, {
     headers: { Authorization: `Client-ID ${key}` },
   });
@@ -186,13 +232,13 @@ async function fetchUnsplash(query: string, perPage: number): Promise<Inspiratio
   }));
 }
 
-async function fetchPexels(query: string, perPage: number): Promise<InspirationImage[]> {
+async function fetchPexels(query: string, perPage: number, page: number): Promise<InspirationImage[]> {
   const key = Deno.env.get('PEXELS_API_KEY');
   if (!key) {
     console.warn('[pexels] no key');
     return [];
   }
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=portrait`;
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${perPage}&page=${page}&orientation=portrait`;
   const res = await fetch(url, {
     headers: { Authorization: key },
   });

@@ -108,6 +108,7 @@ export default function RecommendScreen() {
         loading={inspiration.loading}
         error={inspiration.error}
         images={inspiration.result?.images ?? null}
+        onRefresh={inspiration.refresh}
       />
 
       <View style={{ paddingHorizontal: H_PAD }}>

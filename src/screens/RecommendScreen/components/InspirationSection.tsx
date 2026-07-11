@@ -12,9 +12,10 @@ interface Props {
   loading: boolean;
   error: string | null;
   images: InspirationImage[] | null;
+  onRefresh?: () => void;
 }
 
-export default function InspirationSection({ loading, error, images }: Props) {
+export default function InspirationSection({ loading, error, images, onRefresh }: Props) {
   if (loading) {
     return (
       <View style={{ paddingHorizontal: H_PAD, paddingBottom: 20 }}>
@@ -41,8 +42,36 @@ export default function InspirationSection({ loading, error, images }: Props) {
 
   return (
     <View style={{ paddingBottom: 20 }}>
-      <View style={{ paddingHorizontal: H_PAD }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: H_PAD,
+        }}
+      >
         <SectionTitle />
+        {onRefresh && (
+          <TouchableOpacity
+            onPress={onRefresh}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 8,
+              backgroundColor: '#F5F4F2',
+              marginBottom: 12,
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={12} color="#7A7570" />
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#7A7570' }}>
+              새 추천
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ScrollView
         horizontal
@@ -115,6 +144,7 @@ function SectionTitle() {
         alignItems: 'center',
         marginBottom: 12,
         gap: 6,
+        flex: 1,
       }}
     >
       <Ionicons name="bulb" size={16} color={BOTTEGA} />

@@ -30,7 +30,7 @@ export function useInspiration(weather: WeatherSnapshot | null) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceRefresh = false) => {
     if (!weather) return;
     setLoading(true);
     setError(null);
@@ -45,6 +45,17 @@ export function useInspiration(weather: WeatherSnapshot | null) {
           .eq('id', userData.user.id)
           .maybeSingle();
         gender = profile?.gender ?? undefined;
+
+        // 강제 새로고침: 오늘 캐시 삭제
+        if (forceRefresh) {
+          const today = new Date().toISOString().slice(0, 10);
+          await supabase
+            .from('daily_inspirations')
+            .delete()
+            .eq('user_id', userData.user.id)
+            .eq('date', today);
+          console.log('[useInspiration] 오늘 캐시 삭제 완료');
+        }
       }
 
       const season = getWeatherSeason(weather);
@@ -65,11 +76,13 @@ export function useInspiration(weather: WeatherSnapshot | null) {
     }
   }, [weather]);
 
+  const refreshWithNewImages = useCallback(() => load(true), [load]);
+
   // 날씨 변경 시 자동 로드 (같은 날은 서버가 캐시 반환)
   useEffect(() => {
     if (weather) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weather?.condition, weather?.temp_min_c, weather?.temp_max_c]);
 
-  return { loading, error, result, reload: load };
+  return { loading, error, result, reload: () => load(false), refresh: refreshWithNewImages };
 }
