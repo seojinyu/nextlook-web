@@ -18,8 +18,9 @@ import { supabase, uploadClothingImage, invokeEdge } from '../../lib/supabase';
 import { fetchCurrentWeather } from '../../lib/weather';
 import { removeBackgroundWeb } from '../../lib/bgRemove';
 import type { ClothingCategory } from '../../lib/types';
-import { COLORS, CAT_LABEL, type ColorEntry } from './constants';
+import { CAT_LABEL, type ColorEntry } from './constants';
 import { computeImageHash, deriveSeasonTags, deriveTempRange } from './helpers';
+import { findClosestColor, normalizeCategory, normalizeSeason } from './aiMapping';
 
 export function useAddClothingFlow(onSaved: () => void) {
   const [step, setStep] = useState(0);
@@ -131,19 +132,23 @@ export function useAddClothingFlow(onSaved: () => void) {
       const path = await uploadClothingImage(userData.user.id, resized.uri, 'image/jpeg');
       setUploadedPath(path);
 
-      // 웹 전용: 배경 제거
+      // 웹 데스크탑 전용: 배경 제거 (모바일은 removeBackgroundWeb 내부에서 스킵됨)
       if (Platform.OS === 'web') {
-        setStatus('AI 필터링 중...');
-        try {
-          const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
-          if (bgRemovedUrl) {
-            setStatus('AI 필터링 완료, 저장 중...');
-            const newPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
-            setProcessedPath(newPath);
-            URL.revokeObjectURL(bgRemovedUrl);
+        const isMobile = typeof navigator !== 'undefined' &&
+          /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+        if (!isMobile) {
+          setStatus('AI 필터링 중...');
+          try {
+            const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
+            if (bgRemovedUrl) {
+              setStatus('AI 필터링 완료, 저장 중...');
+              const newPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
+              setProcessedPath(newPath);
+              URL.revokeObjectURL(bgRemovedUrl);
+            }
+          } catch (e) {
+            console.warn('[AddClothing] AI 필터링 실패, 원본만 저장:', e);
           }
-        } catch (e) {
-          console.warn('[AddClothing] AI 필터링 실패, 원본만 저장:', e);
         }
       }
 
@@ -165,27 +170,29 @@ export function useAddClothingFlow(onSaved: () => void) {
         fetchCurrentWeather(loc.coords.latitude, loc.coords.longitude),
       ]);
 
-      const matched =
-        COLORS.find((c) => c.hex === analyzeResult.hex) ?? {
-          name: analyzeResult.name,
-          hex: analyzeResult.hex,
-        };
+      // 색상: AI가 정확한 hex 안 줘도 팔레트에서 가장 가까운 색으로 자동 매핑
+      const matched = findClosestColor(analyzeResult.hex);
+      console.log('[AI] 색상 매핑:', analyzeResult.hex, '→', matched.name, matched.hex);
       setDetectedColor(matched);
       setSelectedColor(matched);
 
-      const cat = analyzeResult.category as ClothingCategory | undefined;
-      if (cat === 'top' || cat === 'bottom' || cat === 'jacket') {
+      // 카테고리: AI 결과 검증. 없으면 사용자가 수동 선택 (기본값 'top' 유지)
+      const cat = normalizeCategory(analyzeResult.category);
+      if (cat) {
         setDetectedCategory(cat);
+        console.log('[AI] 카테고리 감지:', cat);
+      } else {
+        console.warn('[AI] 카테고리 감지 실패, 사용자 수동 선택 필요');
       }
 
-      let szn = analyzeResult.season;
+      // 계절 판정
+      let szn = normalizeSeason(analyzeResult.season);
       const shortSleeve =
         analyzeResult.sleeve_length === 'short' || analyzeResult.sleeve_length === 'sleeveless';
       if ((cat === 'top' || cat === 'jacket') && shortSleeve) szn = 'summer';
 
-      const finalCat = cat === 'top' || cat === 'bottom' || cat === 'jacket' ? cat : 'top';
-      const finalSzn =
-        szn === 'summer' || szn === 'winter' || szn === 'spring_fall' ? szn : 'spring_fall';
+      const finalCat = cat ?? 'top';
+      const finalSzn = szn ?? 'spring_fall';
 
       const aiSeasons = Array.isArray(analyzeResult.seasons)
         ? analyzeResult.seasons.filter((s) => ['summer', 'winter', 'spring_fall'].includes(s))

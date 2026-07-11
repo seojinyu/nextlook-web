@@ -77,20 +77,36 @@ export function useRecommendData() {
 
     // 다음 tick에 새 카드 마운트 — 브라우저가 old 이미지를 회수할 시간을 준다.
     // rAF + setTimeout 이중 폴백으로 모든 브라우저(데스크탑/모바일/인앱)에서 동일하게 동작.
-    const build = () => {
+    const build = async () => {
       console.log('[RecommendScreen] 옷장 개수:', cachedClothes!.length);
       const recs = generateRecommendations(cachedClothes!, w, cachedRecentIds!);
       console.log('[RecommendScreen] 추천 개수:', recs.length);
 
-      const m = new Map<string, Clothing & { signedUrl: string }>();
+      // 추천된 옷의 signedUrl만 lazy fetch (최대 9개, 부담 적음)
+      const neededIds = new Set<string>();
       recs.forEach((s) => {
         [s.top_id, s.bottom_id, s.jacket_id].forEach((id) => {
-          if (id) {
-            const item = cachedClothesUrlMap.get(id);
-            if (item) m.set(id, item);
-          }
+          if (id) neededIds.add(id);
         });
       });
+
+      const m = new Map<string, Clothing & { signedUrl: string }>();
+      await Promise.all(
+        [...neededIds].map(async (id) => {
+          const item = cachedClothesUrlMap.get(id);
+          if (!item) return;
+          try {
+            if (!item.signedUrl) {
+              const preferProcessed = Platform.OS === 'web' && item.processed_image_path;
+              const path = preferProcessed ? item.processed_image_path! : item.image_path;
+              item.signedUrl = await getCachedSignedUrl(path);
+            }
+            m.set(id, item);
+          } catch (e) {
+            console.warn('[RecommendScreen] signedUrl 실패:', id, e);
+          }
+        })
+      );
       setSuggestions(recs);
       setClothesMap(m);
     };
@@ -109,7 +125,11 @@ export function useRecommendData() {
     setTimeout(runOnce, 100);
   }, []);
 
-  /** 첫 로드: 위치 · 옷장 · 최근 · 날씨 전부 프리페치 */
+  /**
+   * 첫 로드: 위치 · 옷장 · 최근 · 날씨 프리페치.
+   * ⚡ signedUrl은 미리 로드하지 않음 - 추천 결과에 뽑힌 옷(최대 9개)만 lazy 로드해서
+   *    모바일 브라우저 메모리 초과("탭 중지") 방지.
+   */
   const initialLoad = useCallback(async () => {
     setLoading(true);
     try {
@@ -141,17 +161,12 @@ export function useRecommendData() {
       );
       setCachedRecentIds(recentSet);
 
-      // 모든 옷의 signedUrl 프리캐시 (웹에선 processed_image_path 우선)
-      const urlMap = new Map<string, Clothing & { signedUrl: string }>();
-      await Promise.all(
-        clothes.map(async (c) => {
-          const preferProcessed = Platform.OS === 'web' && c.processed_image_path;
-          const path = preferProcessed ? c.processed_image_path! : c.image_path;
-          const url = await getCachedSignedUrl(path);
-          urlMap.set(c.id, { ...c, signedUrl: url });
-        })
-      );
-      setCachedClothesUrlMap(urlMap);
+      // 옷 메타데이터만 저장 - signedUrl은 nullable로 두고 나중에 lazy 로드
+      const clothesMeta = new Map<string, Clothing & { signedUrl: string }>();
+      clothes.forEach((c) => {
+        clothesMeta.set(c.id, { ...c, signedUrl: '' });
+      });
+      setCachedClothesUrlMap(clothesMeta);
       setDataReady(true);
 
       generateForDay(1);
@@ -160,7 +175,7 @@ export function useRecommendData() {
     } finally {
       setLoading(false);
     }
-  }, [getLocation, getCachedSignedUrl, generateForDay]);
+  }, [getLocation, generateForDay]);
 
   const selectDate = useCallback(
     (days: number) => {
