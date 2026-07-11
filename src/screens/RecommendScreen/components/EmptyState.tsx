@@ -1,14 +1,22 @@
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../styles';
-import type { Clothing } from '../../../lib/types';
+import { getWeatherSeason } from '../../../lib/recommend/weatherFit';
+import type { Clothing, WeatherSnapshot } from '../../../lib/types';
 
 interface Props {
   clothes: Clothing[] | null;
+  weather?: WeatherSnapshot | null;
 }
 
-/** 옷장 상태에 따라 다른 empty 문구를 보여준다 */
-export default function EmptyState({ clothes }: Props) {
+const SEASON_LABEL: Record<string, string> = {
+  summer: '여름',
+  spring_fall: '봄/가을',
+  winter: '겨울',
+};
+
+/** 옷장 상태 + 오늘 계절에 맞춰 다른 empty 문구를 보여준다 */
+export default function EmptyState({ clothes, weather }: Props) {
   const totalClothes = clothes?.length ?? 0;
   const topsCount = clothes?.filter((c) => c.category === 'top').length ?? 0;
   const bottomsCount = clothes?.filter((c) => c.category === 'bottom').length ?? 0;
@@ -28,6 +36,17 @@ export default function EmptyState({ clothes }: Props) {
   } else if (bottomsCount === 0) {
     title = '하의가 없어요';
     desc = `상의 ${topsCount}개 있음\n하의를 1개 이상 등록해 주세요.`;
+  } else if (weather) {
+    // 상의·하의 다 있는데도 추천 불가 = 계절 안 맞음
+    const season = getWeatherSeason(weather);
+    const label = SEASON_LABEL[season] ?? '오늘 날씨';
+    const seasonTops = clothes?.filter((c) => c.category === 'top' && matchesSeason(c, season)).length ?? 0;
+    const seasonBottoms = clothes?.filter((c) => c.category === 'bottom' && matchesSeason(c, season)).length ?? 0;
+    const avg = Math.round((weather.temp_min_c + weather.temp_max_c) / 2);
+    title = `${label} 옷이 부족해요`;
+    desc = `오늘은 평균 ${avg}°C (${label})\n` +
+           `${label} 상의 ${seasonTops}개 · 하의 ${seasonBottoms}개\n` +
+           `옷장에 ${label} 옷을 추가해 주세요.`;
   }
 
   return (
@@ -39,4 +58,13 @@ export default function EmptyState({ clothes }: Props) {
       <Text style={styles.emptyDesc}>{desc}</Text>
     </View>
   );
+}
+
+function matchesSeason(c: Clothing, season: string): boolean {
+  const tags = c.season_tags ?? [];
+  if (tags.length === 0) return true; // 미태그는 카운트에 포함
+  if (season === 'spring_fall') {
+    return tags.includes('spring_fall') || tags.includes('spring') || tags.includes('fall');
+  }
+  return tags.includes(season);
 }

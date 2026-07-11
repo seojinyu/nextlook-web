@@ -13,7 +13,7 @@
  */
 import type { Clothing, OutfitSuggestion, WeatherSnapshot } from '../types';
 import { colorsMatch } from './colorGroups';
-import { fitsWeather, needsJacket } from './weatherFit';
+import { fitsSeason, needsJacket } from './weatherFit';
 import { buildReason } from './reasonBuilder';
 import { shuffle } from './shuffle';
 
@@ -98,30 +98,31 @@ export function generateRecommendations(
   return suggestions;
 }
 
-/** 3단계 폴백으로 후보 셋을 결정 (recent 필터 → 날씨 필터 → 전체) */
+/**
+ * 후보 셋 결정.
+ * 🔒 계절 필터는 절대 우회하지 않는다 — 여름에 겨울옷 뽑히던 버그 원인.
+ * recent 필터만 폴백으로 해제.
+ * 계절에 맞는 옷이 아예 없으면 빈 배열 반환 → UI가 "여름 옷을 등록해 주세요" 표시.
+ */
 function selectCandidates(
   clothes: Clothing[],
   weather: WeatherSnapshot,
   recentIds: Set<string>,
-  allTops: Clothing[],
-  allBottoms: Clothing[],
+  _allTops: Clothing[],
+  _allBottoms: Clothing[],
 ) {
-  let tops = shuffle(clothes.filter((c) => c.category === 'top' && !recentIds.has(c.id) && fitsWeather(c, weather)));
-  let bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && !recentIds.has(c.id) && fitsWeather(c, weather)));
-  let jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && !recentIds.has(c.id) && fitsWeather(c, weather)));
+  const bySeason = (c: Clothing) => fitsSeason(c, weather);
 
-  if (tops.length === 0 || bottoms.length === 0) {
-    console.log('[Recommend] recent 필터 해제');
-    tops = shuffle(clothes.filter((c) => c.category === 'top' && fitsWeather(c, weather)));
-    bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && fitsWeather(c, weather)));
-    jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && fitsWeather(c, weather)));
-  }
+  let tops = shuffle(clothes.filter((c) => c.category === 'top' && bySeason(c) && !recentIds.has(c.id)));
+  let bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && bySeason(c) && !recentIds.has(c.id)));
+  let jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && bySeason(c) && !recentIds.has(c.id)));
 
+  // recent 필터만 폴백 — 계절 필터는 유지
   if (tops.length === 0 || bottoms.length === 0) {
-    console.log('[Recommend] 날씨 필터 해제 - 전체 사용');
-    tops = shuffle(allTops);
-    bottoms = shuffle(allBottoms);
-    jackets = shuffle(clothes.filter((c) => c.category === 'jacket'));
+    console.log('[Recommend] recent 필터 해제 (계절 필터는 유지)');
+    tops = shuffle(clothes.filter((c) => c.category === 'top' && bySeason(c)));
+    bottoms = shuffle(clothes.filter((c) => c.category === 'bottom' && bySeason(c)));
+    jackets = shuffle(clothes.filter((c) => c.category === 'jacket' && bySeason(c)));
   }
 
   return { tops, bottoms, jackets };

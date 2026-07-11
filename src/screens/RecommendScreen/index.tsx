@@ -125,7 +125,7 @@ export default function RecommendScreen() {
         ))}
 
         {!loading && suggestions.length === 0 && (
-          <EmptyState clothes={getCachedClothes()} />
+          <EmptyState clothes={getCachedClothes()} weather={weather} />
         )}
       </View>
 
