@@ -47,8 +47,8 @@ export function useInspiration(weather: WeatherSnapshot | null) {
   // 이미 표시한 사진 인덱스 추적 → 최대한 안 겹치게
   const shownIndicesRef = useRef<Set<number>>(new Set());
 
-  const load = useCallback(async (hardReload = false) => {
-    if (!weather) return;
+  const load = useCallback(async (hardReload = false): Promise<number> => {
+    if (!weather) return 0;
     setLoading(true);
     setError(null);
     try {
@@ -82,19 +82,30 @@ export function useInspiration(weather: WeatherSnapshot | null) {
         temp_avg: tempAvg,
         season,
       });
-      console.log('[useInspiration] pool 크기:', res.images?.length ?? 0);
+      const poolSize = res.images?.length ?? 0;
+      console.log('[useInspiration] pool 크기:', poolSize);
       setResult(res);
-      shownIndicesRef.current = new Set(); // 새 pool → 이력 리셋
+      shownIndicesRef.current = new Set();
+      return poolSize;
     } catch (e: any) {
       console.warn('[useInspiration] fail:', e);
       setError(e.message ?? String(e));
+      return 0;
     } finally {
       setLoading(false);
     }
   }, [weather]);
 
   useEffect(() => {
-    if (weather) load(false);
+    if (!weather) return;
+    // 최초 로드 후, pool이 10장 미만이면 구버전 캐시이므로 자동 갱신
+    (async () => {
+      const size = await load(false);
+      if (size > 0 && size < 10) {
+        console.log('[useInspiration] 구버전 캐시 감지 (< 10장), 자동 새로고침');
+        await load(true);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weather?.condition, weather?.temp_min_c, weather?.temp_max_c]);
 
