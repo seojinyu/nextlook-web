@@ -49,8 +49,7 @@ export function useRecommendData() {
   const getCachedSignedUrl = useCallback(async (path: string) => {
     const cached = signedUrlCache.get(path);
     if (cached) return cached;
-    // 추천 카드 마네킹 뷰용 600px 썸네일 (원본 대비 5~10배 작음)
-    const url = await getSignedUrl(path, 3600, { width: 600, quality: 80 });
+    const url = await getSignedUrl(path);
     setCachedSignedUrl(path, url);
     return url;
   }, []);

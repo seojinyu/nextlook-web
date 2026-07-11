@@ -1,13 +1,15 @@
 /**
- * Web-only image crop modal using react-image-crop.
- * - 자유 비율 드래그 crop
- * - 인앱 브라우저(네이버·카톡) 대응: 인라인 CSS + touch-action: none
- * - 로드 실패 시 원본을 그대로 넘겨 파이프라인 유지
+ * Web-only image crop modal.
+ *
+ * 설계:
+ * - react-image-crop을 정적 import (동적 import는 인앱 브라우저에서 종종 실패)
+ * - 인라인 CSS 주입으로 CDN CSS 차단 인앱 브라우저 대응
+ * - touch-action: none 으로 모바일 드래그 안정성 확보
+ * - blob URL 대상이라 crossOrigin 불필요 (오히려 일부 브라우저에서 오류 유발)
  */
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, ActivityIndicator, Platform,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import ReactCrop from 'react-image-crop';
 import { injectCropCss } from './inlineCss';
 import { getCroppedImage, type PixelCrop } from './canvasHelpers';
 import { styles } from './styles';
@@ -23,45 +25,34 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
   const [crop, setCrop] = useState<any>(undefined);
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [ReactCrop, setReactCrop] = useState<any>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // react-image-crop 라이브러리 lazy load
+  // 인앱 브라우저 CDN CSS 차단 대비 인라인 CSS 주입 (한 번만)
   useEffect(() => {
-    if (!visible || Platform.OS !== 'web' || ReactCrop) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        injectCropCss();
-        const mod = await import('react-image-crop');
-        if (cancelled) return;
-        const Comp = mod.default;
-        if (typeof Comp !== 'function' && typeof Comp !== 'object') {
-          console.error('[CropModal] ReactCrop is invalid:', typeof Comp);
-          setLoadError(true);
-          return;
-        }
-        setReactCrop(() => Comp);
-      } catch (e) {
-        console.error('[CropModal] failed to load react-image-crop:', e);
-        if (!cancelled) setLoadError(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [visible, ReactCrop]);
+    if (visible && Platform.OS === 'web') {
+      injectCropCss();
+    }
+  }, [visible]);
 
-  // 로드 실패 시 UI에서 재시도 또는 스킵 선택 (자동 스킵 X)
-  const retryLoad = useCallback(() => {
-    setLoadError(false);
-    setReactCrop(null);
-  }, []);
+  // 새 이미지가 들어오면 상태 리셋
+  useEffect(() => {
+    if (imageUri) {
+      setImgLoaded(false);
+      setCrop(undefined);
+      setCompletedCrop(null);
+    }
+  }, [imageUri]);
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    imgRef.current = e.currentTarget;
-    const { width, height } = e.currentTarget;
-    const initial = {
-      unit: 'px' as const,
+    const img = e.currentTarget;
+    imgRef.current = img;
+    const { width, height } = img;
+    console.log('[CropModal] 이미지 로드:', width, 'x', height);
+
+    // 초기 crop: 중앙 90%
+    const initial: PixelCrop = {
+      unit: 'px',
       x: width * 0.05,
       y: height * 0.05,
       width: width * 0.9,
@@ -69,20 +60,23 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
     };
     setCrop(initial);
     setCompletedCrop(initial);
+    setImgLoaded(true);
   }, []);
 
   const handleDone = useCallback(async () => {
-    if (!imageUri || !completedCrop || !imgRef.current) {
-      if (imageUri) onComplete(imageUri);
+    if (!imageUri) return;
+    if (!completedCrop || !imgRef.current) {
+      onComplete(imageUri);
       return;
     }
     setProcessing(true);
     try {
       const croppedUri = await getCroppedImage(imgRef.current, completedCrop);
+      console.log('[CropModal] 자르기 완료');
       onComplete(croppedUri);
     } catch (e) {
-      console.error('[CropModal] crop failed:', e);
-      if (imageUri) onComplete(imageUri);
+      console.error('[CropModal] 자르기 실패, 원본 사용:', e);
+      onComplete(imageUri);
     } finally {
       setProcessing(false);
     }
@@ -91,77 +85,13 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
   const resetCrop = useCallback(() => {
     if (!imgRef.current) return;
     const { width, height } = imgRef.current;
-    setCrop({ unit: 'px', x: 0, y: 0, width, height });
+    const full: PixelCrop = { unit: 'px', x: 0, y: 0, width, height };
+    setCrop(full);
+    setCompletedCrop(full);
   }, []);
 
   if (!visible || !imageUri) return null;
   if (Platform.OS !== 'web') return null;
-
-  // 라이브러리 로딩 중
-  if (!ReactCrop && !loadError) {
-    return (
-      <View style={styles.overlay}>
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#1B6B4A" />
-          <Text style={styles.loaderText}>사진 편집기 로드 중...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <View style={styles.overlay}>
-        <View style={styles.loader}>
-          <Text style={[styles.loaderText, { marginBottom: 8 }]}>
-            사진 편집기를 불러오지 못했어요
-          </Text>
-          <Text style={{ fontSize: 12, color: '#7A7570', textAlign: 'center', marginBottom: 16 }}>
-            인터넷 상태를 확인하고 다시 시도해 주세요.
-          </Text>
-          <TouchableOpacity
-            onPress={retryLoad}
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 12,
-              borderRadius: 10,
-              backgroundColor: '#1B6B4A',
-              marginBottom: 8,
-              width: 180,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>다시 시도</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => imageUri && onComplete(imageUri)}
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 12,
-              borderRadius: 10,
-              backgroundColor: '#F0EDEA',
-              marginBottom: 8,
-              width: 180,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#1A1A1A', fontWeight: '600' }}>자르기 없이 진행</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onCancel}
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 12,
-              width: 180,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#7A7570', fontWeight: '600' }}>취소</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.overlay}>
@@ -171,11 +101,15 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
             <Text style={styles.cancelText}>취소</Text>
           </TouchableOpacity>
           <Text style={styles.title}>사진 자르기</Text>
-          <TouchableOpacity onPress={handleDone} style={styles.headerBtn} disabled={processing}>
+          <TouchableOpacity
+            onPress={handleDone}
+            style={styles.headerBtn}
+            disabled={processing || !imgLoaded}
+          >
             {processing ? (
               <ActivityIndicator color="#1B6B4A" size="small" />
             ) : (
-              <Text style={styles.doneText}>완료</Text>
+              <Text style={[styles.doneText, !imgLoaded && { opacity: 0.4 }]}>완료</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -195,18 +129,17 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
           >
             <ReactCrop
               crop={crop}
-              onChange={(c: any) => setCrop(c)}
-              onComplete={(c: PixelCrop) => setCompletedCrop(c)}
+              onChange={(c) => setCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
               keepSelection
               minWidth={30}
               minHeight={30}
               ruleOfThirds
             >
               <img
-                ref={(el: HTMLImageElement | null) => { if (el) imgRef.current = el; }}
+                ref={(el) => { if (el) imgRef.current = el; }}
                 src={imageUri}
-                alt="crop"
-                crossOrigin="anonymous"
+                alt="자를 사진"
                 onLoad={onImageLoad}
                 draggable={false}
                 style={{
@@ -216,19 +149,24 @@ export default function CropModal({ visible, imageUri, onCancel, onComplete }: P
                   touchAction: 'none',
                   userSelect: 'none',
                   WebkitUserSelect: 'none',
-                  WebkitUserDrag: 'none',
                   pointerEvents: 'auto',
                 } as any}
               />
             </ReactCrop>
           </div>
+
+          {!imgLoaded && (
+            <View style={{ position: 'absolute', top: '50%', left: '50%' } as any}>
+              <ActivityIndicator size="large" color="#1B6B4A" />
+            </View>
+          )}
         </View>
 
         <View style={styles.controls}>
           <Text style={styles.help}>
             모서리·가장자리를 드래그해서 원하는 크기와 위치로 자유롭게 자르세요
           </Text>
-          <TouchableOpacity style={styles.resetBtn} onPress={resetCrop}>
+          <TouchableOpacity style={styles.resetBtn} onPress={resetCrop} disabled={!imgLoaded}>
             <Text style={styles.resetBtnText}>전체 선택 (원본)</Text>
           </TouchableOpacity>
         </View>

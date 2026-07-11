@@ -17,6 +17,7 @@ import * as Location from 'expo-location';
 import { supabase, uploadClothingImage, invokeEdge } from '../../lib/supabase';
 import { fetchCurrentWeather } from '../../lib/weather';
 import { removeBackgroundWeb } from '../../lib/bgRemove';
+import { resizeBlobUrl } from '../../lib/imageResize';
 import type { ClothingCategory } from '../../lib/types';
 import { CAT_LABEL, type ColorEntry } from './constants';
 import { computeImageHash, deriveSeasonTags, deriveTempRange } from './helpers';
@@ -104,9 +105,10 @@ export function useAddClothingFlow(onSaved: () => void) {
     setImageHash('');
     try {
       setStatus('이미지 처리 중...');
+      // 800px로 축소 (기존 1024) - 옷장 로드 시 메모리 부담 40% 감소
       const resized = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 1024 } }],
+        [{ resize: { width: 800 } }],
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
       );
       setLocalUri(resized.uri);
@@ -132,16 +134,20 @@ export function useAddClothingFlow(onSaved: () => void) {
       const path = await uploadClothingImage(userData.user.id, resized.uri, 'image/jpeg');
       setUploadedPath(path);
 
-      // 웹 전용: 배경 제거 (모바일은 quint8 가벼운 모델, 데스크탑은 fp16 정확 모델)
+      // 웹 전용: 배경 제거 (768px 입력 + fp16 모델 + Web Worker)
       if (Platform.OS === 'web') {
         setStatus('AI 필터링 중...');
         try {
           const bgRemovedUrl = await removeBackgroundWeb(resized.uri);
           if (bgRemovedUrl) {
             setStatus('AI 필터링 완료, 저장 중...');
-            const newPath = await uploadClothingImage(userData.user.id, bgRemovedUrl, 'image/png');
+            // 저장 전 PNG를 700px로 리사이즈 → 옷장 로드 시 메모리 부담 감소
+            const downsizedUrl = await resizeBlobUrl(bgRemovedUrl, 700, 'image/png', 0.9)
+              .catch(() => bgRemovedUrl); // 리사이즈 실패해도 원본 사용
+            const newPath = await uploadClothingImage(userData.user.id, downsizedUrl, 'image/png');
             setProcessedPath(newPath);
             URL.revokeObjectURL(bgRemovedUrl);
+            if (downsizedUrl !== bgRemovedUrl) URL.revokeObjectURL(downsizedUrl);
           }
         } catch (e) {
           console.warn('[AddClothing] AI 필터링 실패, 원본만 저장:', e);

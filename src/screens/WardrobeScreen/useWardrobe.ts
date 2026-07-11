@@ -46,9 +46,7 @@ export function useWardrobe() {
           batch.map(async (c: any) => {
             try {
               const path = c.processed_image_path || c.image_path;
-              // 옷장 그리드용 400px 썸네일 (원본 대비 10~20배 작음 → 크래시 방지)
-              const url = await getSignedUrl(path, 3600, { width: 400, quality: 75 });
-              return { ...(c as Clothing), signedUrl: url };
+              return { ...(c as Clothing), signedUrl: await getSignedUrl(path) };
             } catch (e) {
               console.warn('signed URL 실패:', c.id, e);
               return null;
