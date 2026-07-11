@@ -15,18 +15,32 @@ export function getWeatherSeason(weather: WeatherSnapshot): Season {
 
 /**
  * 계절 태그 기반 필터 (최우선).
- * - 태그가 있으면: 오늘 계절과 겹쳐야 함 (봄/가을 태그는 spring, fall 별칭도 인정)
+ *
+ * 규칙:
  * - 태그가 없으면: 온도 범위로 판단
- * - 여름엔 자켓 카테고리 자체를 배제
+ * - 여름엔 자켓 카테고리 자체 배제 (아우터 안 입음)
+ * - 여름 하의는 관대하게: '여름' + '봄/가을' 모두 허용
+ *   (청바지·슬랙스·린넨팬츠 같은 긴 바지는 여름에도 실사용)
+ * - 여름 상의는 엄격하게: '여름' 태그만 (긴팔은 더위)
+ * - 봄/가을은 별칭(spring, fall) 인정
  */
 export function fitsSeason(item: Clothing, weather: WeatherSnapshot): boolean {
   const season = getWeatherSeason(weather);
 
-  // 여름엔 자켓 자체 불허 (아우터 안 입음)
   if (season === 'summer' && item.category === 'jacket') return false;
 
   const tags = item.season_tags ?? [];
   if (tags.length === 0) return fitsWeather(item, weather);
+
+  if (season === 'summer' && item.category === 'bottom') {
+    // 여름 하의는 봄/가을 태그도 허용
+    return (
+      tags.includes('summer') ||
+      tags.includes('spring_fall') ||
+      tags.includes('spring') ||
+      tags.includes('fall')
+    );
+  }
 
   if (season === 'spring_fall') {
     return tags.includes('spring_fall') || tags.includes('spring') || tags.includes('fall');
