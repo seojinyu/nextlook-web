@@ -75,7 +75,8 @@ export function useRecommendData() {
     setSuggestions([]);
     setClothesMap(new Map());
 
-    // 다음 프레임에 새 카드 마운트 — 브라우저가 old 이미지를 회수할 시간을 준다.
+    // 다음 tick에 새 카드 마운트 — 브라우저가 old 이미지를 회수할 시간을 준다.
+    // rAF + setTimeout 이중 폴백으로 모든 브라우저(데스크탑/모바일/인앱)에서 동일하게 동작.
     const build = () => {
       console.log('[RecommendScreen] 옷장 개수:', cachedClothes!.length);
       const recs = generateRecommendations(cachedClothes!, w, cachedRecentIds!);
@@ -93,11 +94,19 @@ export function useRecommendData() {
       setSuggestions(recs);
       setClothesMap(m);
     };
+
+    // rAF와 setTimeout을 race — 어느 쪽이 먼저 발동해도 한 번만 실행
+    let ran = false;
+    const runOnce = () => {
+      if (ran) return;
+      ran = true;
+      build();
+    };
     if (typeof requestAnimationFrame !== 'undefined') {
-      requestAnimationFrame(() => requestAnimationFrame(build));
-    } else {
-      setTimeout(build, 50);
+      requestAnimationFrame(() => requestAnimationFrame(runOnce));
     }
+    // 폴백: 백그라운드 탭·rAF 미지원 인앱 브라우저 대비
+    setTimeout(runOnce, 100);
   }, []);
 
   /** 첫 로드: 위치 · 옷장 · 최근 · 날씨 전부 프리페치 */
