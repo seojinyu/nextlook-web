@@ -103,12 +103,13 @@ export default function RecommendScreen() {
         {weather && <WeatherCard weather={weather} />}
       </View>
 
-      {/* 오늘의 스타일 영감 (외부 사진, 성별/날씨 맞춤) */}
+      {/* 오늘의 스타일 영감 (30장 pool → 랜덤 3장 표시) */}
       <InspirationSection
         loading={inspiration.loading}
         error={inspiration.error}
-        images={inspiration.result?.images ?? null}
-        onRefresh={inspiration.refresh}
+        images={inspiration.images}
+        poolSize={inspiration.poolSize}
+        onRotate={inspiration.rotate}
       />
 
       <View style={{ paddingHorizontal: H_PAD }}>

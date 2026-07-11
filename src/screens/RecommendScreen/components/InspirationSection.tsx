@@ -1,7 +1,8 @@
 /**
  * 오늘의 스타일 영감 섹션.
- * Recommend 탭 상단, 내 옷장 추천 위에 표시.
- * 외부 사진 저작자 크레딧 필수 명시 (Unsplash/Pexels 이용약관).
+ * - 30장 pool에서 무작위 3장 표시
+ * - "🔄 다른 스타일" 버튼 = pool 내 rotation (즉시, 무료)
+ * - 헤더에 pool 크기 표시 (예: "30 중 3")
  */
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,15 +12,16 @@ import type { InspirationImage } from '../useInspiration';
 interface Props {
   loading: boolean;
   error: string | null;
-  images: InspirationImage[] | null;
-  onRefresh?: () => void;
+  images: InspirationImage[];
+  poolSize: number;
+  onRotate?: () => void;
 }
 
-export default function InspirationSection({ loading, error, images, onRefresh }: Props) {
+export default function InspirationSection({ loading, error, images, poolSize, onRotate }: Props) {
   if (loading) {
     return (
       <View style={{ paddingHorizontal: H_PAD, paddingBottom: 20 }}>
-        <SectionTitle />
+        <SectionTitle poolSize={0} />
         <View style={{
           height: 300,
           borderRadius: 18,
@@ -36,9 +38,7 @@ export default function InspirationSection({ loading, error, images, onRefresh }
     );
   }
 
-  if (error || !images || images.length === 0) {
-    return null; // 실패 시 그냥 안 보여줌 (기본 추천은 계속 동작)
-  }
+  if (error || images.length === 0) return null;
 
   return (
     <View style={{ paddingBottom: 20 }}>
@@ -50,10 +50,10 @@ export default function InspirationSection({ loading, error, images, onRefresh }
           paddingHorizontal: H_PAD,
         }}
       >
-        <SectionTitle />
-        {onRefresh && (
+        <SectionTitle poolSize={poolSize} />
+        {onRotate && poolSize > 3 && (
           <TouchableOpacity
-            onPress={onRefresh}
+            onPress={onRotate}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -61,14 +61,14 @@ export default function InspirationSection({ loading, error, images, onRefresh }
               paddingHorizontal: 10,
               paddingVertical: 6,
               borderRadius: 8,
-              backgroundColor: '#F5F4F2',
+              backgroundColor: '#F0EDEA',
               marginBottom: 12,
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="refresh" size={12} color="#7A7570" />
-            <Text style={{ fontSize: 11, fontWeight: '600', color: '#7A7570' }}>
-              새 추천
+            <Ionicons name="shuffle" size={12} color={BOTTEGA} />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: BOTTEGA }}>
+              다른 스타일
             </Text>
           </TouchableOpacity>
         )}
@@ -80,7 +80,7 @@ export default function InspirationSection({ loading, error, images, onRefresh }
       >
         {images.map((img, i) => (
           <View
-            key={i}
+            key={`${img.url}-${i}`}
             style={{
               width: 220,
               backgroundColor: '#fff',
@@ -136,7 +136,7 @@ export default function InspirationSection({ loading, error, images, onRefresh }
   );
 }
 
-function SectionTitle() {
+function SectionTitle({ poolSize }: { poolSize: number }) {
   return (
     <View
       style={{
@@ -151,9 +151,11 @@ function SectionTitle() {
       <Text style={{ fontSize: 18, fontWeight: '800', color: '#1A1A1A' }}>
         오늘의 스타일 영감
       </Text>
-      <Text style={{ fontSize: 12, color: '#7A7570', marginLeft: 4 }}>
-        · 성별 · 날씨 맞춤
-      </Text>
+      {poolSize > 0 && (
+        <Text style={{ fontSize: 11, color: '#A8A4A0', marginLeft: 4 }}>
+          · {poolSize}개 중
+        </Text>
+      )}
     </View>
   );
 }
