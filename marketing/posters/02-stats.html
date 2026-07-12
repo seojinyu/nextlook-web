@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Stats</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1080px;
+  background: #FAFAF8;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+  padding: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  text-align: center;
+}
+.top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.top-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accent-line {
+  width: 40px;
+  height: 3px;
+  background: #1B6B4A;
+  border-radius: 2px;
+}
+.label {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+}
+.subtitle {
+  font-size: 32px;
+  font-weight: 600;
+  color: #7A7570;
+  letter-spacing: -0.5px;
+}
+.big-number {
+  font-size: 480px;
+  font-weight: 900;
+  color: #1A1A1A;
+  line-height: 1;
+  letter-spacing: -20px;
+}
+.unit {
+  font-size: 48px;
+  font-weight: 700;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+  margin-top: -20px;
+}
+.middle-fact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.fact {
+  font-size: 26px;
+  font-weight: 600;
+  color: #7A7570;
+  letter-spacing: -0.5px;
+}
+.fact-highlight {
+  font-size: 32px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -1px;
+}
+.bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.cta {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 36px;
+  font-style: italic;
+  color: #1A1A1A;
+  font-weight: 500;
+}
+.brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: #7A7570;
+  letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="top">
+    <div class="top-label">
+      <div class="accent-line"></div>
+      <div class="label">FASHION FACT</div>
+    </div>
+    <div class="subtitle">우리가 매일 아침 옷 고르는 시간</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <div class="big-number">12</div>
+    <div class="unit">MINUTES / DAY</div>
+  </div>
+
+  <div class="middle-fact">
+    <div class="fact">1년이면</div>
+    <div class="fact-highlight">73시간 = 꼬박 3일</div>
+  </div>
+
+  <div class="bottom">
+    <div class="cta">AI가 대신 골라 드립니다.</div>
+    <div class="brand">NEXTLOOK · nextlook.co.kr</div>
+  </div>
+</div>
+</body>
+</html>

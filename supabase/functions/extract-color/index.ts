@@ -123,6 +123,7 @@ interface AiAnalysis {
 }
 
 async function analyzeClothingWithGemini(imageBytes: Uint8Array): Promise<AiAnalysis> {
+  // 기본값을 top → null 컨셉으로: 실패 시 상의로 몰리지 않도록 명시적 감지 요구
   const defaultResult: AiAnalysis = { category: 'top', seasons: ['spring_fall'] };
   if (!GEMINI_API_KEY) return defaultResult;
   try {
@@ -136,7 +137,9 @@ async function analyzeClothingWithGemini(imageBytes: Uint8Array): Promise<AiAnal
           contents: [{
             parts: [
               { inlineData: { mimeType: 'image/jpeg', data: b64 } },
-              { text: `You are a fashion expert. Analyze this clothing item photo and reply with ONLY a JSON object:
+              { text: `You are an expert fashion image analyzer. Look at the image carefully and identify the clothing item.
+
+Reply ONLY with a JSON object in this exact format:
 
 {
   "category": "top|bottom|jacket",
@@ -146,69 +149,94 @@ async function analyzeClothingWithGemini(imageBytes: Uint8Array): Promise<AiAnal
   "is_pattern": false
 }
 
-=== CATEGORY (CRITICAL - be very precise) ===
+=========================================
+STEP 1: IDENTIFY THE CATEGORY (MOST CRITICAL)
+=========================================
 
-TOP (상의) - Upper body clothing:
-  - T-shirts, blouses, shirts, polo shirts
-  - Sweaters (unless they're heavy outer layer)
-  - Hoodies, sweatshirts (unless it's clearly outer wear)
-  - Tank tops, cami tops
-  - Turtlenecks
-  KEY: If you can wear this as the primary top layer, it's TOP
+Look at the SHAPE of the garment first. Identify visual features:
 
-BOTTOM (하의) - Lower body clothing:
-  - Pants, jeans, trousers, chinos
-  - Shorts (any length)
-  - Skirts (any length)
-  - Sweatpants, joggers
-  - Leggings
-  KEY: Covers lower body
+🔵 IF YOU SEE TWO LEG OPENINGS OR TUBE-LIKE SHAPES → BOTTOM
+   Visual clues for BOTTOM (하의):
+   - Two separate leg holes at the bottom (pants, jeans, trousers, sweatpants, leggings, joggers)
+   - Waistband at top (belt loops, drawstring, elastic band)
+   - Cone or A-line shape with single opening below waist (skirts)
+   - Length is usually longer vertically than wide (except shorts/mini skirts)
+   - No sleeves, no collar, no buttons at chest area
+   - Photo often shows folded pants/jeans that create a "U" or "II" shape
+   - Denim texture with rivets/pockets on legs
 
-JACKET (자켓) - Outer layer clothing:
-  - Coats (long, trench, wool)
-  - Blazers, suit jackets
-  - Padded jackets, puffer jackets, down jackets
-  - Denim jackets, leather jackets, bomber jackets
-  - Cardigans (open front, outer wear style)
-  - Kimono-style outerwear
-  KEY: Designed to wear OVER other clothes
+   Examples that ARE BOTTOMS: jeans, chinos, sweatpants, joggers, dress pants,
+   shorts, mini skirts, midi skirts, long skirts, leggings, culottes, wide-leg pants,
+   cargo pants, track pants, pleated skirts, denim skirts
 
-=== SEASONS (multi-select array, can have 1-3 items) ===
+🔴 IF YOU SEE ARM/SLEEVE OPENINGS OR NECKLINE → TOP or JACKET
+   Visual clues for TOP (상의):
+   - Neckline visible (crew, V-neck, turtleneck, collar)
+   - Sleeves (long, short, or sleeveless armholes)
+   - Fits over head or torso
+   - T-shirts, blouses, shirts, sweaters, hoodies, sweatshirts, polo shirts,
+     tank tops, cami tops, turtlenecks
 
-Rules for multi-season assignment:
-- Short-sleeve tops, tank tops, shorts, mini skirts → ["summer"]
-- Long-sleeve regular thickness tops, light sweaters → ["spring_fall", "winter"]
-- Very heavy items (thick padded coats, wool coats, chunky knits) → ["winter"] only
+   Visual clues for JACKET (자켓):
+   - Full front opening (buttons, zipper, snaps down the middle)
+   - Heavy/structured/thick fabric
+   - Meant to be worn OVER another top layer
+   - Coats (trench, wool, long), blazers, suit jackets,
+     puffer/padded jackets, down jackets, denim jackets, leather jackets,
+     bomber jackets, cardigans (open front), kimono outerwear
+
+=========================================
+STEP 2: BOTTOMS ARE OFTEN MISCLASSIFIED - CHECK AGAIN
+=========================================
+
+Common bottom photo scenarios that get confused:
+- Folded pants laid flat → still BOTTOM (look for waistband/leg holes)
+- Pants hung on hanger → BOTTOM (long vertical shape, no sleeves)
+- Shorts photographed straight on → BOTTOM (waistband + short legs)
+- Skirt spread out → BOTTOM (waistband + flared/pleated shape, NO leg tubes)
+- Denim close-up → probably BOTTOM (jeans) unless clearly a jacket
+
+⚠️ IF THE ITEM HAS A WAISTBAND OR TWO LEG HOLES: it's DEFINITELY BOTTOM, not top.
+⚠️ IF THE ITEM DOES NOT HAVE SLEEVES/NECKLINE: it's NOT a top.
+
+Only classify as TOP or JACKET if you can CLEARLY see:
+  - A neckline (where the head goes through), OR
+  - Sleeve openings (where arms go)
+
+If you see NEITHER a neckline NOR sleeves → it must be a BOTTOM.
+
+=========================================
+STEP 3: SEASONS (array with 1-3 items)
+=========================================
+
+- Short-sleeve tops, tank tops, shorts, mini skirts, thin summer dresses → ["summer"]
+- Long-sleeve normal weight tops, light sweaters, blouses → ["spring_fall", "winter"]
+- Thick winter items (padded coats, wool coats, chunky knits) → ["winter"]
 - Light jackets, cardigans, blazers → ["spring_fall", "winter"]
-- Denim (jeans, jean jackets) → ["spring_fall", "winter"] (not summer unless clearly light-wash cropped)
-- Pants of medium weight → ["spring_fall", "winter"]
+- Denim (jeans, jean jackets) → ["spring_fall", "winter"]
+- Regular weight pants → ["spring_fall", "winter"]
+- Cotton/linen light pants → ["summer", "spring_fall"]
 
-Examples:
-- Cotton t-shirt: {"category":"top","seasons":["summer"],"sleeve_length":"short"}
-- Wool sweater: {"category":"top","seasons":["winter"],"sleeve_length":"long"}
-- Cardigan: {"category":"jacket","seasons":["spring_fall","winter"],"sleeve_length":"long"}
-- Jeans: {"category":"bottom","seasons":["spring_fall","winter"],"sleeve_length":"none"}
-- Shorts: {"category":"bottom","seasons":["summer"],"sleeve_length":"none"}
-- Padded winter coat: {"category":"jacket","seasons":["winter"],"sleeve_length":"long"}
+=========================================
+STEP 4: COLOR (choose ONE closest match)
+=========================================
 
-=== COLOR (choose exactly ONE closest match) ===
+Look at the DOMINANT color of the actual fabric (ignore tags, hangers, backgrounds, shadows).
 
-Look at the DOMINANT color of the actual clothing (ignore any tags, hangers, backgrounds).
-
-- 블랙 (black): very dark, almost no lightness
-- 화이트 (white): very light, near-pure white
-- 그레이 (gray): pure gray between black and white
+- 블랙: very dark, near black
+- 화이트: very light, near white
+- 그레이: pure gray
 - 라이트그레이: pale gray
 - 다크그레이: charcoal
 - 네이비: very dark blue
 - 블루: medium blue
 - 라이트블루: pale blue
-- 레드: pure red or bright red
+- 레드: pure/bright red
 - 와인: dark red / burgundy
 - 핑크: pink or salmon
-- 베이지: warm neutral, tan
-- 크림: off-white, ivory
-- 브라운: brown, coffee
+- 베이지: warm neutral tan
+- 크림: off-white ivory
+- 브라운: brown coffee
 - 카키: military green / olive
 - 그린: green
 - 민트: mint / pale green
@@ -216,11 +244,29 @@ Look at the DOMINANT color of the actual clothing (ignore any tags, hangers, bac
 - 오렌지: orange, coral
 - 퍼플: purple, violet
 
-For multi-color/patterned items: pick the DOMINANT color.
+For patterned items: pick the DOMINANT color.
+is_pattern: true if visible patterns (stripes, checks, floral, prints), false if solid.
 
-is_pattern: true if the item has visible patterns (stripes, checks, floral, prints), false if solid color.
+=========================================
+FINAL EXAMPLES:
+=========================================
 
-Reply ONLY the JSON object, no other text.` },
+Photo of folded jeans:
+{"category":"bottom","seasons":["spring_fall","winter"],"sleeve_length":"none","color":"블루","is_pattern":false}
+
+Photo of denim shorts:
+{"category":"bottom","seasons":["summer"],"sleeve_length":"none","color":"블루","is_pattern":false}
+
+Photo of pleated skirt:
+{"category":"bottom","seasons":["spring_fall","winter"],"sleeve_length":"none","color":"블랙","is_pattern":false}
+
+Photo of white t-shirt:
+{"category":"top","seasons":["summer"],"sleeve_length":"short","color":"화이트","is_pattern":false}
+
+Photo of navy wool coat:
+{"category":"jacket","seasons":["winter"],"sleeve_length":"long","color":"네이비","is_pattern":false}
+
+Reply ONLY the JSON object, no other text, no markdown.` },
             ],
           }],
           generationConfig: { temperature: 0, maxOutputTokens: 200 },
@@ -230,7 +276,10 @@ Reply ONLY the JSON object, no other text.` },
     if (!res.ok) return defaultResult;
     const json = await res.json();
     const text = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-    let cat: string; let seasons: string[]; let sleeve: string | undefined; let color: string | undefined; let pattern = false;
+    console.log('[Gemini] raw response:', text.substring(0, 300));
+
+    let cat: string; let seasons: string[]; let sleeve: string | undefined;
+    let color: string | undefined; let pattern = false;
     try {
       const parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
       cat = ['top', 'bottom', 'jacket'].includes(parsed.category) ? parsed.category : 'top';
@@ -250,20 +299,37 @@ Reply ONLY the JSON object, no other text.` },
       color = parsed.color;
       pattern = !!parsed.is_pattern;
     } catch {
-      // fallback: parse from text
-      cat = text.includes('"bottom"') ? 'bottom' : text.includes('"jacket"') ? 'jacket' : 'top';
+      // 개선된 fallback: bottom > jacket > top 순 우선 감지
+      // (하의는 놓치기 쉬우니 먼저 체크)
+      if (/"category"\s*:\s*"bottom"/.test(text) || text.toLowerCase().includes('bottom')) {
+        cat = 'bottom';
+      } else if (/"category"\s*:\s*"jacket"/.test(text) || text.toLowerCase().includes('jacket')) {
+        cat = 'jacket';
+      } else {
+        cat = 'top';
+      }
       seasons = ['spring_fall'];
       if (text.includes('summer')) seasons.push('summer');
       if (text.includes('winter')) seasons.push('winter');
       seasons = [...new Set(seasons)];
-      sleeve = text.includes('short') ? 'short' : text.includes('sleeveless') ? 'sleeveless' : undefined;
+      sleeve = text.includes('"short"') ? 'short'
+        : text.includes('"sleeveless"') ? 'sleeveless'
+        : text.includes('"none"') ? 'none' : undefined;
     }
 
-    // 안전장치: 반팔/민소매 상의 → 여름 포함 강제
+    // 안전장치 1: 반팔/민소매 상의 → 여름 포함 강제
     if ((cat === 'top' || cat === 'jacket') && (sleeve === 'short' || sleeve === 'sleeveless')) {
       if (!seasons.includes('summer')) seasons = ['summer'];
     }
 
+    // 안전장치 2: sleeve_length가 "none"이면 하의 확률 높음
+    // AI가 실수로 top이라고 했어도 sleeve_length가 none이면 bottom으로 정정
+    if (sleeve === 'none' && cat === 'top') {
+      console.log('[Gemini] sleeve=none인데 top으로 감지됨 → bottom으로 정정');
+      cat = 'bottom';
+    }
+
+    console.log(`[Gemini] 최종: category=${cat}, seasons=${seasons.join(',')}, sleeve=${sleeve}, color=${color}`);
     return { category: cat, seasons, sleeve_length: sleeve, color_name: color, is_pattern: pattern };
   } catch (e) {
     console.error('[Gemini] error:', e);

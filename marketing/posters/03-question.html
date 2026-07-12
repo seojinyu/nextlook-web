@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Question</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1080px;
+  background: #FAFAF8;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  padding: 60px 80px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.top-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accent-line {
+  width: 40px;
+  height: 3px;
+  background: #1B6B4A;
+  border-radius: 2px;
+}
+.label {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+}
+.q-title {
+  font-size: 56px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -2px;
+}
+.body {
+  flex: 1;
+  display: flex;
+  border-top: 2px solid #1A1A1A;
+}
+.option {
+  flex: 1;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+}
+.option-a { background: #FAFAF8; border-right: 1px solid #EDEAE6; }
+.option-b { background: #F5F2ED; }
+.tag {
+  font-size: 120px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -8px;
+}
+.tag-a { color: #1A1A1A; }
+.tag-b { color: #1B6B4A; }
+.txt-main {
+  font-size: 38px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -1px;
+  line-height: 1.2;
+}
+.txt-sub {
+  font-size: 22px;
+  font-weight: 500;
+  color: #7A7570;
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+}
+.footer {
+  padding: 30px 80px 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 2px solid #1A1A1A;
+}
+.footer-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-style: italic;
+  color: #1A1A1A;
+  font-weight: 500;
+}
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="header">
+    <div class="top-label">
+      <div class="accent-line"></div>
+      <div class="label">WHICH ONE ARE YOU</div>
+    </div>
+    <div class="q-title">당신은 어느 쪽인가요?</div>
+  </div>
+
+  <div class="body">
+    <div class="option option-a">
+      <div class="tag tag-a">A</div>
+      <div class="txt-main">옷은 많은데<br>입을 게 없다</div>
+      <div class="txt-sub">매일 옷장 뒤지느라<br>지쳐요</div>
+    </div>
+    <div class="option option-b">
+      <div class="tag tag-b">B</div>
+      <div class="txt-main">옷은 적은데<br>잘 매치해서 입는다</div>
+      <div class="txt-sub">미니멀 라이프<br>실천 중</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-text">Comment your type ↓</div>
+    <div class="brand">NEXTLOOK</div>
+  </div>
+</div>
+</body>
+</html>

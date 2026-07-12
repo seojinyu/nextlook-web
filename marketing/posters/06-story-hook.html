@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Story Hook</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1920px;
+  background: #FAFAF8;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+  padding: 120px 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.top-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accent-line {
+  width: 40px;
+  height: 3px;
+  background: #1B6B4A;
+  border-radius: 2px;
+}
+.label {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+}
+.main-text {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.line-1 {
+  font-size: 180px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -8px;
+  line-height: 1;
+}
+.line-2 {
+  font-size: 180px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -8px;
+  line-height: 1;
+}
+.line-3 {
+  font-size: 180px;
+  font-weight: 900;
+  color: #1B6B4A;
+  letter-spacing: -8px;
+  line-height: 1;
+}
+.mid-tag {
+  display: inline-block;
+  padding: 16px 32px;
+  background: #1A1A1A;
+  border-radius: 100px;
+  align-self: flex-start;
+  margin-top: 40px;
+}
+.mid-tag-text {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 3px;
+}
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.tagline {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 60px;
+  font-style: italic;
+  color: #1A1A1A;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.brand-block {
+  padding-top: 30px;
+  border-top: 3px solid #1A1A1A;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.brand {
+  font-size: 40px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -1px;
+}
+.url {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1B6B4A;
+  letter-spacing: 2px;
+}
+.arrow-up {
+  align-self: center;
+  margin-top: 40px;
+  font-size: 40px;
+  color: #7A7570;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div>
+    <div class="top-label">
+      <div class="accent-line"></div>
+      <div class="label">DAILY LOOK · 2026</div>
+    </div>
+  </div>
+
+  <div class="main-text">
+    <div class="line-1">뭘</div>
+    <div class="line-2">입어야</div>
+    <div class="line-3">할지.</div>
+
+    <div class="mid-tag">
+      <div class="mid-tag-text">AI가 알려줍니다</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="tagline">매일 아침의<br>10분을 되돌립니다.</div>
+
+    <div class="arrow-up">↑ swipe up</div>
+
+    <div class="brand-block">
+      <div class="brand">NEXTLOOK</div>
+      <div class="url">nextlook.co.kr</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Magazine</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1350px;
+  background: #FAFAF8;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+  padding: 60px 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #1A1A1A;
+  padding-bottom: 24px;
+}
+.issue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accent-line {
+  width: 40px;
+  height: 3px;
+  background: #1B6B4A;
+  border-radius: 2px;
+}
+.issue-text {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1A1A1A;
+  letter-spacing: 3px;
+}
+.month {
+  font-size: 16px;
+  font-weight: 700;
+  color: #7A7570;
+  letter-spacing: 3px;
+}
+.center-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 0;
+}
+.brand-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 220px;
+  font-weight: 700;
+  color: #1A1A1A;
+  line-height: 1;
+  letter-spacing: -8px;
+  margin-bottom: 30px;
+}
+.subtitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 6px;
+  margin-bottom: 60px;
+}
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 20px;
+  border-left: 3px solid #1B6B4A;
+}
+.feature {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+.feature-num {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1B6B4A;
+  letter-spacing: 2px;
+  min-width: 80px;
+}
+.feature-txt {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: -0.5px;
+}
+.bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 2px solid #1A1A1A;
+  padding-top: 24px;
+}
+.tagline {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 40px;
+  font-style: italic;
+  color: #1A1A1A;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.url-block {
+  text-align: right;
+}
+.free-tag {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+.url {
+  font-size: 24px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="top-row">
+    <div class="issue">
+      <div class="accent-line"></div>
+      <div class="issue-text">ISSUE 001</div>
+    </div>
+    <div class="month">JULY · 2026</div>
+  </div>
+
+  <div class="center-area">
+    <div class="brand-name">NextLook</div>
+    <div class="subtitle">AI OUTFIT CURATOR</div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-num">No. 01</div>
+        <div class="feature-txt">Style Mood — 매일 30가지 큐레이션</div>
+      </div>
+      <div class="feature">
+        <div class="feature-num">No. 02</div>
+        <div class="feature-txt">My Picks — 내 옷장 코디 3가지</div>
+      </div>
+      <div class="feature">
+        <div class="feature-num">No. 03</div>
+        <div class="feature-txt">AI 자동 분석 · 배경 제거</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-row">
+    <div class="tagline">매일의 스타일,<br>새롭게 큐레이션.</div>
+    <div class="url-block">
+      <div class="free-tag">FREE · NO ADS</div>
+      <div class="url">nextlook.co.kr</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

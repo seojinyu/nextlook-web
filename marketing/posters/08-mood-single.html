@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Mood Single</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Caveat:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1350px;
+  background: #F5F0E8;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+}
+
+/* 그라데이션 텍스처 */
+.bg-gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at top right, rgba(180, 200, 170, 0.25) 0%, transparent 50%),
+              radial-gradient(ellipse at bottom left, rgba(214, 195, 165, 0.3) 0%, transparent 50%);
+}
+
+/* 상단 라벨 */
+.top-tag {
+  position: absolute;
+  top: 60px;
+  left: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+.top-tag-line {
+  width: 30px;
+  height: 2px;
+  background: #1B6B4A;
+}
+.top-tag-text {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+}
+
+/* 우측 상단 이슈 넘버 */
+.issue-num {
+  position: absolute;
+  top: 60px;
+  right: 60px;
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: 3px;
+  text-align: right;
+}
+.issue-num small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #7A7570;
+  margin-top: 4px;
+  letter-spacing: 2px;
+}
+
+/* 메인 타이포 */
+.main-word {
+  position: absolute;
+  top: 200px;
+  left: 60px;
+  font-family: 'Playfair Display', serif;
+  font-size: 340px;
+  font-weight: 900;
+  font-style: italic;
+  color: #1A1A1A;
+  line-height: 0.85;
+  letter-spacing: -14px;
+  z-index: 5;
+}
+.main-word .accent {
+  color: #1B6B4A;
+  font-style: italic;
+}
+
+/* 한글 서브 타이틀 */
+.kr-title {
+  position: absolute;
+  top: 620px;
+  left: 60px;
+  z-index: 6;
+}
+.kr-title .line-1 {
+  font-size: 88px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -3px;
+  line-height: 1;
+}
+.kr-title .line-2 {
+  font-size: 88px;
+  font-weight: 300;
+  color: #1A1A1A;
+  letter-spacing: -3px;
+  line-height: 1;
+  margin-top: 6px;
+}
+.kr-title .em {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-weight: 400;
+  color: #1B6B4A;
+}
+
+/* 핸드라이팅 노트 */
+.hand-note {
+  position: absolute;
+  top: 470px;
+  right: 80px;
+  transform: rotate(-8deg);
+  font-family: 'Caveat', cursive;
+  font-size: 44px;
+  color: #1B6B4A;
+  font-weight: 600;
+  line-height: 1.1;
+  z-index: 7;
+  text-align: right;
+}
+.hand-note .arrow {
+  display: block;
+  font-size: 60px;
+  margin-top: 4px;
+  color: #1A1A1A;
+}
+
+/* 폴라로이드 요소 (앱 미리보기) */
+.polaroid {
+  position: absolute;
+  top: 240px;
+  right: 60px;
+  width: 300px;
+  background: #fff;
+  padding: 20px 20px 60px;
+  transform: rotate(4deg);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.08);
+  z-index: 4;
+}
+.polaroid-inner {
+  width: 100%;
+  aspect-ratio: 4/5;
+  background: linear-gradient(135deg, #2A3F30 0%, #1A1A1A 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+}
+.polaroid-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.polaroid-line {
+  width: 20px;
+  height: 2px;
+  background: #A8C4A2;
+}
+.polaroid-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #A8C4A2;
+  letter-spacing: 2.5px;
+}
+.polaroid-title {
+  font-size: 32px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.polaroid-subtitle {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 20px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: -0.3px;
+  margin-bottom: auto;
+}
+.polaroid-cards {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.mini-card {
+  flex: 1;
+  aspect-ratio: 2/3;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.4);
+  font-style: italic;
+}
+.polaroid-caption {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  color: #7A7570;
+  text-align: center;
+  margin-top: 20px;
+  font-weight: 500;
+}
+
+/* 하단 정보 블록 */
+.bottom-block {
+  position: absolute;
+  bottom: 60px;
+  left: 60px;
+  right: 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 2px solid #1A1A1A;
+  padding-top: 30px;
+  z-index: 5;
+}
+.bottom-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bottom-tag {
+  font-size: 12px;
+  font-weight: 800;
+  color: #7A7570;
+  letter-spacing: 3px;
+}
+.bottom-desc {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-style: italic;
+  color: #1A1A1A;
+  font-weight: 500;
+  line-height: 1.2;
+  max-width: 500px;
+}
+.bottom-right {
+  text-align: right;
+}
+.brand-name {
+  font-size: 32px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.brand-url {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1B6B4A;
+  letter-spacing: 2px;
+  margin-top: 8px;
+}
+.free-tag {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 14px;
+  background: #1A1A1A;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  border-radius: 100px;
+}
+
+/* 장식 요소 */
+.deco-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #1B6B4A;
+  border-radius: 50%;
+}
+.deco-dot-1 { top: 100px; left: 550px; }
+.deco-dot-2 { bottom: 300px; left: 500px; }
+.deco-line-1 {
+  position: absolute;
+  top: 700px;
+  right: 380px;
+  width: 100px;
+  height: 1px;
+  background: #7A7570;
+  transform: rotate(45deg);
+}
+
+/* 스티커 요소 */
+.sticker {
+  position: absolute;
+  bottom: 240px;
+  left: 60px;
+  padding: 12px 24px;
+  background: #1B6B4A;
+  color: #fff;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  transform: rotate(-3deg);
+  box-shadow: 0 4px 12px rgba(27, 107, 74, 0.3);
+}
+
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="bg-gradient"></div>
+
+  <div class="top-tag">
+    <div class="top-tag-line"></div>
+    <div class="top-tag-text">TODAY'S MOOD</div>
+  </div>
+
+  <div class="issue-num">
+    NO. 001<small>JULY 2026</small>
+  </div>
+
+  <div class="deco-dot deco-dot-1"></div>
+  <div class="deco-dot deco-dot-2"></div>
+  <div class="deco-line-1"></div>
+
+  <div class="main-word">
+    Mood<br><span class="accent">Board</span>
+  </div>
+
+  <div class="hand-note">
+    try this app!<br>
+    <span class="arrow">↓</span>
+  </div>
+
+  <div class="polaroid">
+    <div class="polaroid-inner">
+      <div class="polaroid-tag">
+        <div class="polaroid-line"></div>
+        <div class="polaroid-label">STYLE MOOD</div>
+      </div>
+      <div class="polaroid-title">Style<br>Mood</div>
+      <div class="polaroid-subtitle">30 looks daily</div>
+      <div class="polaroid-cards">
+        <div class="mini-card">A</div>
+        <div class="mini-card">B</div>
+        <div class="mini-card">C</div>
+      </div>
+    </div>
+    <div class="polaroid-caption">— my new favorite —</div>
+  </div>
+
+  <div class="kr-title">
+    <div class="line-1">매일의 무드,</div>
+    <div class="line-2"><span class="em">AI</span>가 골라주는.</div>
+  </div>
+
+  <div class="sticker">✦ NEW · 무료 · 광고 없음</div>
+
+  <div class="bottom-block">
+    <div class="bottom-left">
+      <div class="bottom-tag">DAILY OUTFIT CURATOR</div>
+      <div class="bottom-desc">"매일 아침 옷 뭐 입지?"<br>이제 30초면 끝.</div>
+    </div>
+    <div class="bottom-right">
+      <div class="brand-name">NEXTLOOK</div>
+      <div class="brand-url">nextlook.co.kr</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

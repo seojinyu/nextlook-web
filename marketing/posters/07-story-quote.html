@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Story Quote</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1920px;
+  background: #1A1A1A;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+  padding: 120px 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #fff;
+}
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+}
+.top-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accent-line {
+  width: 40px;
+  height: 3px;
+  background: #1B6B4A;
+  border-radius: 2px;
+}
+.label {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+}
+.quote-mark {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 200px;
+  color: #1B6B4A;
+  line-height: 1;
+  font-weight: 500;
+  margin-bottom: -40px;
+}
+.middle {
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+  padding: 0 20px;
+}
+.quote-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 88px;
+  font-weight: 500;
+  font-style: italic;
+  color: #fff;
+  line-height: 1.15;
+  letter-spacing: -1px;
+}
+.quote-author {
+  padding-left: 40px;
+  border-left: 3px solid #1B6B4A;
+  font-size: 26px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+}
+.author-name {
+  font-weight: 800;
+  color: #fff;
+  display: block;
+  margin-bottom: 4px;
+}
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.check-us {
+  font-size: 24px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.arrow-up {
+  text-align: center;
+  font-size: 40px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+.brand-block {
+  padding-top: 30px;
+  border-top: 2px solid rgba(255,255,255,0.15);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.brand {
+  font-size: 40px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -1px;
+}
+.url {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1B6B4A;
+  letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="top">
+    <div class="top-label">
+      <div class="accent-line"></div>
+      <div class="label">USER STORY</div>
+    </div>
+    <div class="quote-mark">"</div>
+  </div>
+
+  <div class="middle">
+    <div class="quote-text">옷 고민에서<br>완전히<br>벗어났어요.</div>
+    <div class="quote-author">
+      <span class="author-name">— 김서연</span>
+      30대 직장인 · Seoul<br>
+      NextLook 사용 3개월
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="check-us">지금 확인해보세요</div>
+    <div class="arrow-up">↑ swipe up</div>
+    <div class="brand-block">
+      <div class="brand">NEXTLOOK</div>
+      <div class="url">nextlook.co.kr</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
