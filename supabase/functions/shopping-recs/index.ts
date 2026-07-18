@@ -1,12 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 /**
- * Shopping Recommendations Edge Function v3.
+ * Shopping Recommendations Edge Function v4.
  *
- * 개선사항:
- * 1. target_date 파라미터 → 날짜별 다른 상품 (같은 날씨여도)
- * 2. 신발 카테고리는 스니커즈만 (뉴발란스·나이키·아디다스 등)
- * 3. 트렌디 브랜드 modifier (유니클로·무신사·커버낫·스파오)
- * 4. refresh_seed로 매번 다른 상품
+ * - target_date로 날짜별 다른 상품
+ * - 성별 엄격 필터링
+ * - 스니커즈는 인기 브랜드 다양하게 랜덤
+ * - 트렌디 브랜드 modifier
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.103.0';
 
@@ -24,79 +23,80 @@ interface Product {
 
 interface RequestBody {
   gender?: string;
-  age_range?: string;      // 10s | 20s | 30s | 40s | 50s+
   weather_condition: string;
   temp_avg: number;
   season: 'summer' | 'winter' | 'spring_fall';
-  target_date?: string;    // YYYY-MM-DD
+  target_date?: string;
   refresh_seed?: number;
 }
 
-// 스니커즈 브랜드 쿼리 (성별 프리픽스는 아래에서 동적 추가)
+// 인기 스니커즈 (다양한 브랜드 · 다양한 모델)
 const SNEAKER_MODELS = [
-  '뉴발란스 스니커즈',
-  '뉴발란스 530',
-  '뉴발란스 574',
-  '뉴발란스 992',
+  // 나이키
   '나이키 에어포스',
-  '나이키 덩크',
-  '나이키 조던',
-  '나이키 스니커즈',
+  '나이키 덩크 로우',
+  '나이키 조던1',
+  '나이키 에어맥스',
+  '나이키 코르테즈',
+  '나이키 페가수스',
+  // 아디다스
   '아디다스 삼바',
   '아디다스 가젤',
   '아디다스 스탠스미스',
+  '아디다스 슈퍼스타',
+  '아디다스 캠퍼스',
+  '아디다스 오존위브',
+  // 뉴발란스
+  '뉴발란스 530',
+  '뉴발란스 574',
+  '뉴발란스 992',
+  '뉴발란스 993',
+  '뉴발란스 2002R',
+  // 컨버스
   '컨버스 척테일러',
+  '컨버스 원스타',
+  '컨버스 잭퍼셀',
+  // 반스
   '반스 올드스쿨',
   '반스 어센틱',
+  '반스 슬립온',
+  '반스 에라',
+  // 푸마
   '푸마 스웨이드',
+  '푸마 팜므',
+  '푸마 클라이드',
+  // 온러닝 (프리미엄)
+  '온러닝 클라우드',
   '온러닝 스니커즈',
+  // 아식스 (트렌디 리바이벌)
+  '아식스 젤카야노',
+  '아식스 젤라이트3',
+  '아식스 젤퀀텀',
+  // 호카 (요즘 인기)
+  '호카 본디',
+  '호카 클리프톤',
+  '호카 스니커즈',
+  // 리복 (레트로 트렌드)
+  '리복 클럽씨',
+  '리복 클래식',
+  // 살로몬 (테크 스니커즈)
+  '살로몬 XT-6',
+  '살로몬 스니커즈',
+  // MLB
+  'MLB 청키러너',
+  'MLB 스니커즈',
 ];
 
-// 나이대별 브랜드 pool (해당 나이대가 선호하는 브랜드)
-const AGE_BRANDS: Record<string, string[]> = {
-  '10s': ['에잇세컨즈', '무신사', '스파오', '탑텐', '커버낫', 'MLB'],
-  '20s': ['무신사스탠다드', '유니클로', '커버낫', '스파오', '지오다노', '탑텐', '무신사'],
-  '30s': ['유니클로', '자라', '망고', '무인양품', '코스', '라코스테', '토미힐피거'],
-  '40s': ['유니클로', '자라', '폴로', '라코스테', '헤지스', '빈폴', '타미힐피거'],
-  '50s+': ['유니클로', '폴로', '헤지스', '빈폴', '올리비아로렌', 'K2', '노스페이스'],
-};
-
-// 나이대별 스타일 modifier
-const AGE_STYLE_MODIFIERS: Record<string, string[]> = {
-  '10s': ['오버핏', '크롭', '스트릿', '유니크', 'Y2K', '루즈핏'],
-  '20s': ['오버핏', '와이드', '스트릿', '트렌디', '미니멀', '슬림'],
-  '30s': ['슬림', '베이직', '미니멀', '클래식', '레귤러핏', '모던'],
-  '40s': ['클래식', '베이직', '레귤러핏', '컴포트', '슬림'],
-  '50s+': ['베이직', '편안한', '레귤러핏', '클래식'],
-};
-
-// 나이대별 선호 스니커즈
-const AGE_SNEAKERS: Record<string, string[]> = {
-  '10s': [
-    '나이키 덩크', '나이키 조던', '아디다스 삼바', '아디다스 가젤',
-    '뉴발란스 530', '반스 올드스쿨', '컨버스 척테일러',
-  ],
-  '20s': [
-    '뉴발란스 530', '뉴발란스 574', '나이키 에어포스', '나이키 덩크',
-    '아디다스 삼바', '아디다스 가젤', '아디다스 스탠스미스', '반스 올드스쿨',
-  ],
-  '30s': [
-    '뉴발란스 574', '뉴발란스 992', '나이키 에어포스', '아디다스 스탠스미스',
-    '컨버스 척테일러', '온러닝 스니커즈', '푸마 스웨이드',
-  ],
-  '40s': [
-    '뉴발란스 992', '뉴발란스 993', '아디다스 스탠스미스', '나이키 에어맥스',
-    '온러닝 스니커즈', '아식스 스니커즈',
-  ],
-  '50s+': [
-    '뉴발란스 워킹화', '나이키 에어맥스', '아식스 스니커즈', '아디다스 워킹화',
-    '컴포트 스니커즈',
-  ],
-};
-
-// 기본 트렌디 브랜드 (나이대 미설정 시)
-const DEFAULT_BRANDS = [
-  '유니클로', '무신사스탠다드', '커버낫', '스파오', '지오다노',
+// 트렌디 브랜드 modifier
+const TRENDY_BRANDS = [
+  '유니클로',
+  '무신사스탠다드',
+  '커버낫',
+  '스파오',
+  '지오다노',
+  '탑텐',
+  '에잇세컨즈',
+  '무신사',
 ];
 
 const CORS_HEADERS = {
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     const isToday = targetDate === today;
     const isRefresh = typeof body.refresh_seed === 'number' && body.refresh_seed > 0;
 
-    // 1) 캐시 확인 (오늘 · refresh 아닐 때만)
+    // 캐시 확인 (오늘 · refresh 아닐 때만)
     if (isToday && !isRefresh) {
       const { data: existing } = await supabase
         .from('daily_shopping')
@@ -138,25 +138,21 @@ Deno.serve(async (req) => {
       if (existing && Array.isArray(existing.products) && existing.products.length > 0
           && existing.weather_condition === body.weather_condition
           && existing.temp_avg === body.temp_avg) {
-        console.log('[shopping-recs] cache hit (today)');
+        console.log('[shopping-recs] cache hit');
         return json({ cached: true, ...existing });
       }
     }
 
-    // 2) 시드 생성: target_date + userId + weather + refresh_seed
-    // target_date가 다르면 시드도 다름 → 같은 날씨여도 다른 상품
+    // 시드: target_date + userId + weather + refresh_seed
     const seed = `${targetDate}-${userId}-${body.weather_condition}_${body.temp_avg}-${body.refresh_seed ?? 0}`;
 
-    // 3) 카테고리 결정 (신발은 스니커즈만, 다른 아이템은 브랜드 modifier)
     const categories = getCategoriesForWeather(body, seed);
     console.log('[shopping-recs] queries:', categories);
 
-    // 4) 각 카테고리별 네이버 쇼핑 API 병렬 호출
     const results = await Promise.all(
       categories.map((cat, i) => fetchNaverShopping(cat, seed + '-' + i)),
     );
 
-    // 5) 병합 + 중복 제거 + 성별 필터 + 셔플
     const seen = new Set<string>();
     let products: Product[] = [];
     for (const items of results) {
@@ -167,7 +163,6 @@ Deno.serve(async (req) => {
         }
       }
     }
-    // 성별 반대 상품 제외 (예: 남성이면 여성 카테고리 제거)
     products = filterByGender(products, body.gender);
     products = seededShuffle(products, seed);
     const finalProducts = products.slice(0, 9);
@@ -177,7 +172,6 @@ Deno.serve(async (req) => {
       return json({ error: '상품을 찾지 못했어요' }, 502);
     }
 
-    // 6) DB 캐싱 (오늘만)
     if (isToday) {
       const { data: inserted, error: insertErr } = await supabase
         .from('daily_shopping')
@@ -200,11 +194,9 @@ Deno.serve(async (req) => {
         console.warn('[shopping-recs] upsert failed:', insertErr);
         return json({ cached: false, products: finalProducts, date: today });
       }
-
       return json({ cached: false, ...inserted });
     }
 
-    // 미래/과거 날짜는 캐싱 안 함
     return json({ cached: false, products: finalProducts, date: targetDate });
   } catch (e: any) {
     console.error('[shopping-recs] error:', e);
@@ -220,9 +212,8 @@ function json(payload: unknown, status = 200) {
 }
 
 /**
- * 날씨·성별 → 카테고리 결정.
- * 신발은 항상 스니커즈 (브랜드 랜덤)
- * 나머지는 랜덤 브랜드 modifier로 트렌디하게
+ * 성별·날씨 → 카테고리 결정.
+ * 신발은 SNEAKER_MODELS(41개 브랜드/모델)에서 시드 랜덤 선택.
  */
 function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   const isFemale = body.gender === 'female';
@@ -232,7 +223,6 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   const isRainy = body.weather_condition === 'Rain' || body.weather_condition === 'Drizzle';
   const isSnowy = body.weather_condition === 'Snow';
 
-  // 계절별 옷 카테고리 pool (신발 제외)
   let clothingPool: string[];
 
   if (body.season === 'summer' || body.temp_avg >= 25) {
@@ -285,64 +275,40 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
     ];
   }
 
-  // 날씨 modifier (신발 아닌 것만)
-  if (isRainy) {
-    clothingPool.push(`${prefix}방수자켓`);
-  }
-  if (isSnowy) {
-    clothingPool.push(`${prefix}털장갑`, `${prefix}비니`);
-  }
+  if (isRainy) clothingPool.push(`${prefix}방수자켓`);
+  if (isSnowy) clothingPool.push(`${prefix}털장갑`, `${prefix}비니`);
 
-  // 시드 셔플 후 옷 3개 선택
+  // 옷 3개 선택
   const shuffledClothing = seededShuffle(clothingPool, seed);
   const selectedClothing = shuffledClothing.slice(0, 3);
 
-  // 나이대별 브랜드/스타일 선택 (미설정이면 기본)
-  const ageKey = body.age_range && AGE_BRANDS[body.age_range] ? body.age_range : null;
-  const brandPool = ageKey ? AGE_BRANDS[ageKey] : DEFAULT_BRANDS;
-  const styleModifiers = ageKey ? AGE_STYLE_MODIFIERS[ageKey] : ['오버핏', '베이직', '슬림'];
-
-  // 옷 카테고리에 나이대 브랜드/스타일 modifier 랜덤 추가
-  const withBrands = selectedClothing.map((cat, i) => {
-    const modType = hashSeed(seed + `-modtype-${i}`) % 3;
-    // 0: 브랜드 추가 (33%)
-    // 1: 스타일 modifier (33%)
-    // 2: 인기/베스트 modifier (33%)
-    if (modType === 0) {
-      const brandIdx = hashSeed(seed + `-brand-${i}`) % brandPool.length;
-      return `${brandPool[brandIdx]} ${cat}`;
-    } else if (modType === 1) {
-      const styleIdx = hashSeed(seed + `-style-${i}`) % styleModifiers.length;
-      return `${styleModifiers[styleIdx]} ${cat}`;
-    } else {
-      const modifiers = ['인기', '베스트', '신상'];
-      const modIdx = hashSeed(seed + `-trend-${i}`) % modifiers.length;
-      return `${cat} ${modifiers[modIdx]}`;
+  // 옷 modifier: 트렌디 브랜드 or 인기/베스트/신상 (랜덤)
+  const withMods = selectedClothing.map((cat, i) => {
+    const useBrand = (hashSeed(seed + `-brand-${i}`) % 2) === 0; // 50% 브랜드
+    if (useBrand) {
+      const brandIdx = hashSeed(seed + `-brand-sel-${i}`) % TRENDY_BRANDS.length;
+      return `${TRENDY_BRANDS[brandIdx]} ${cat}`;
     }
+    const modifiers = ['인기', '베스트', '신상'];
+    const modIdx = hashSeed(seed + `-trend-${i}`) % modifiers.length;
+    return `${cat} ${modifiers[modIdx]}`;
   });
 
-  // 신발: 나이대별 선호 스니커즈에서 선택 (없으면 기본 pool)
-  const sneakerPool = ageKey ? AGE_SNEAKERS[ageKey] : SNEAKER_MODELS;
-  const shoeIdx = hashSeed(seed + '-shoe') % sneakerPool.length;
-  const sneakerModel = sneakerPool[shoeIdx];
+  // 신발: SNEAKER_MODELS 41개에서 시드 랜덤 선택 (다양한 브랜드)
+  const shoeIdx = hashSeed(seed + '-shoe') % SNEAKER_MODELS.length;
+  const sneakerModel = SNEAKER_MODELS[shoeIdx];
   const sneakerQuery = prefix ? `${prefix.trim()} ${sneakerModel}` : sneakerModel;
 
-  return [...withBrands, sneakerQuery];
+  return [...withMods, sneakerQuery];
 }
 
-/**
- * 성별 반대 카테고리 상품 필터링.
- * 예: 남성 사용자 → 여성/여자 키워드 있는 상품 제외
- */
 function filterByGender(products: Product[], gender?: string): Product[] {
   if (!gender || gender === 'other' || gender === 'prefer_not_to_say') {
-    return products; // 성별 미설정 시 필터링 안 함
+    return products;
   }
-
   const oppositeKeywords = gender === 'female'
-    ? ['남성', '남자', '남아', '보이즈', "men's", 'mens', 'male', ' 남 ']
-    : ['여성', '여자', '여아', '걸즈', "women's", 'womens', 'female', ' 여 '];
-
+    ? ['남성', '남자', '남아', '보이즈', "men's", 'mens', 'male']
+    : ['여성', '여자', '여아', '걸즈', "women's", 'womens', 'female'];
   const oppositeCategories = gender === 'female'
     ? ['남성의류', '남성패션', '남자패션']
     : ['여성의류', '여성패션', '여자패션'];
@@ -350,17 +316,12 @@ function filterByGender(products: Product[], gender?: string): Product[] {
   return products.filter((p) => {
     const titleLower = p.title.toLowerCase();
     const categoryLower = (p.category || '').toLowerCase();
-
-    // 제목에 반대 성별 키워드 있으면 제외
     for (const kw of oppositeKeywords) {
       if (titleLower.includes(kw.toLowerCase())) return false;
     }
-
-    // 카테고리가 반대 성별이면 제외
     for (const cat of oppositeCategories) {
       if (categoryLower.includes(cat.toLowerCase())) return false;
     }
-
     return true;
   });
 }

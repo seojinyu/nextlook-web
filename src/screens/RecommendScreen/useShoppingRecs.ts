@@ -1,7 +1,8 @@
 /**
- * 오늘의 쇼핑 추천 훅 (v3).
- * - target_date 전달 → 같은 날씨여도 다른 날짜면 다른 상품
- * - refresh 시 랜덤 시드 생성
+ * 오늘의 쇼핑 추천 훅.
+ * - target_date로 날짜별 다른 상품
+ * - 성별 엄격 필터링
+ * - refresh로 완전 새 상품
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, invokeEdge } from '../../lib/supabase';
@@ -32,7 +33,6 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [userGender, setUserGender] = useState<string | null>(null);
-  const [userAgeRange, setUserAgeRange] = useState<string | null>(null);
 
   const lastKeyRef = useRef<string>('');
 
@@ -43,17 +43,14 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     try {
       const { data: userData } = await supabase.auth.getUser();
       let gender: string | undefined;
-      let ageRange: string | undefined;
       if (userData.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('gender, age_range')
+          .select('gender')
           .eq('id', userData.user.id)
           .maybeSingle();
         gender = profile?.gender ?? undefined;
-        ageRange = profile?.age_range ?? undefined;
         setUserGender(gender ?? null);
-        setUserAgeRange(ageRange ?? null);
       }
 
       const season = getWeatherSeason(weather);
@@ -61,7 +58,6 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
 
       const res = await invokeEdge<Result>('shopping-recs', {
         gender,
-        age_range: ageRange,
         weather_condition: weather.condition,
         temp_avg: tempAvg,
         season,
@@ -79,10 +75,8 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     }
   }, [weather, targetDate]);
 
-  // weather 또는 target_date 변경 감지 → 새 fetch
   useEffect(() => {
     if (!weather) return;
-    // 키에 date 포함 → 같은 날씨여도 다른 날짜면 재로드
     const currentKey = `${targetDate}_${weather.condition}_${weather.temp_min_c}_${weather.temp_max_c}`;
     if (currentKey !== lastKeyRef.current) {
       lastKeyRef.current = currentKey;
@@ -100,8 +94,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     loading,
     error,
     products: result?.products ?? [],
-    userGender,   // 'male' | 'female' | 'other' | null
-    userAgeRange, // '10s' | '20s' | '30s' | '40s' | '50s+' | null
+    userGender,
     refresh,
   };
 }

@@ -1,12 +1,9 @@
 /**
  * TODAY'S PICK 섹션 - 오늘 날씨 맞춤 쇼핑 추천.
- * Style Mood 자리에 들어가는 새 섹션.
  *
  * - 네이버 쇼핑 API 기반 실제 상품
  * - 매거진 스타일 카드 UI
- * - 쇼핑몰 로고 배지
- * - 저작권 안전 (이미지는 네이버 호스팅)
- * - 하단에 어필리에이트 필수 명시
+ * - 성별 배지 표시
  */
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,17 +17,16 @@ interface Props {
   products: ShoppingProduct[];
   weather: WeatherSnapshot | null;
   userGender?: string | null;
-  userAgeRange?: string | null;
   onRefresh?: () => void;
 }
 
 export default function ShoppingSection({
-  loading, error, products, weather, userGender, userAgeRange, onRefresh,
+  loading, error, products, weather, userGender, onRefresh,
 }: Props) {
   if (loading) {
     return (
       <View style={{ paddingHorizontal: H_PAD, paddingBottom: 24 }}>
-        <SectionHeader weather={weather} userGender={userGender} userAgeRange={userAgeRange} onRefresh={undefined} />
+        <SectionHeader weather={weather} userGender={userGender} onRefresh={undefined} />
         <View
           style={{
             height: 280,
@@ -54,11 +50,11 @@ export default function ShoppingSection({
   return (
     <View style={{ paddingBottom: 28 }}>
       <View style={{ paddingHorizontal: H_PAD }}>
-        <SectionHeader weather={weather} userGender={userGender} userAgeRange={userAgeRange} onRefresh={onRefresh} />
+        <SectionHeader weather={weather} userGender={userGender} onRefresh={onRefresh} />
       </View>
 
-      {/* 프로필 미설정 안내 (성별 또는 나이대 없을 때) */}
-      {(shouldShowProfileHint(userGender, userAgeRange)) && (
+      {/* 성별 미설정 시 안내 */}
+      {(!userGender || userGender === 'other' || userGender === 'prefer_not_to_say') && (
         <View
           style={{
             marginHorizontal: H_PAD,
@@ -72,7 +68,7 @@ export default function ShoppingSection({
         >
           <Text style={{ fontSize: 11, color: '#7A7570', lineHeight: 15 }}>
             <Text style={{ fontWeight: '800', color: '#C49A3C' }}>💡 팁: </Text>
-            {getProfileHintText(userGender, userAgeRange)}
+            프로필에 성별 설정하면 남자/여자 맞춤 상품만 추천해드려요.
           </Text>
         </View>
       )}
@@ -107,7 +103,6 @@ export default function ShoppingSection({
                 style={{ width: 160, height: 200, backgroundColor: '#F5F4F2' }}
                 resizeMode="cover"
               />
-              {/* 쇼핑몰 배지 */}
               <View
                 style={{
                   position: 'absolute',
@@ -161,45 +156,13 @@ export default function ShoppingSection({
   );
 }
 
-function shouldShowProfileHint(gender?: string | null, age?: string | null): boolean {
-  const genderMissing = !gender || gender === 'other' || gender === 'prefer_not_to_say';
-  const ageMissing = !age;
-  return genderMissing || ageMissing;
-}
-
-function getProfileHintText(gender?: string | null, age?: string | null): string {
-  const genderMissing = !gender || gender === 'other' || gender === 'prefer_not_to_say';
-  const ageMissing = !age;
-  if (genderMissing && ageMissing) {
-    return '프로필에 성별과 나이대 설정하면 더 정확한 상품을 추천해드려요.';
-  }
-  if (genderMissing) {
-    return '프로필에 성별 설정하면 남자/여자 맞춤 상품만 추천해드려요.';
-  }
-  return '프로필에 나이대 설정하면 연령대에 맞는 브랜드로 추천해드려요.';
-}
-
-function ageRangeLabel(age?: string | null): string | null {
-  if (!age) return null;
-  const map: Record<string, string> = {
-    '10s': '10대',
-    '20s': '20대',
-    '30s': '30대',
-    '40s': '40대',
-    '50s+': '50대+',
-  };
-  return map[age] ?? null;
-}
-
 function SectionHeader({
   weather,
   userGender,
-  userAgeRange,
   onRefresh,
 }: {
   weather: WeatherSnapshot | null;
   userGender?: string | null;
-  userAgeRange?: string | null;
   onRefresh?: () => void;
 }) {
   const temp = weather ? Math.round((weather.temp_min_c + weather.temp_max_c) / 2) : null;
@@ -213,8 +176,6 @@ function SectionHeader({
   const genderLabel = userGender === 'male' ? "MEN'S"
                     : userGender === 'female' ? "WOMEN'S"
                     : null;
-
-  const ageLabel = ageRangeLabel(userAgeRange);
 
   return (
     <View
@@ -247,20 +208,6 @@ function SectionHeader({
             >
               <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>
                 {genderLabel}
-              </Text>
-            </View>
-          )}
-          {ageLabel && (
-            <View
-              style={{
-                backgroundColor: '#C49A3C',
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: 10,
-              }}
-            >
-              <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>
-                {ageLabel}
               </Text>
             </View>
           )}
