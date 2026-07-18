@@ -1,10 +1,9 @@
 /**
- * 오늘의 쇼핑 추천 훅.
- * - 사용자 프로필의 성별 · 오늘 날씨 → 네이버 쇼핑 API 상품
- * - 하루 캐싱 (서버측)
- * - 완전 새 pool 요청은 hardReload로 (오늘 캐시 삭제)
+ * 오늘의 쇼핑 추천 훅 (v2).
+ * - refresh 시 랜덤 시드 생성 → 매번 다른 상품
+ * - weather 변경 시 자동 새 fetch (다른 날짜 예보 → 다른 상품)
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, invokeEdge } from '../../lib/supabase';
 import { getWeatherSeason } from '../../lib/recommend/weatherFit';
 import type { WeatherSnapshot } from '../../lib/types';
@@ -33,7 +32,10 @@ export function useShoppingRecs(weather: WeatherSnapshot | null) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
-  const load = useCallback(async (hardReload = false) => {
+  // 마지막 로드한 weather 조건 (동일 조건이면 재로드 안 함)
+  const lastWeatherKeyRef = useRef<string>('');
+
+  const load = useCallback(async (refreshSeed = 0) => {
     if (!weather) return;
     setLoading(true);
     setError(null);
@@ -47,16 +49,6 @@ export function useShoppingRecs(weather: WeatherSnapshot | null) {
           .eq('id', userData.user.id)
           .maybeSingle();
         gender = profile?.gender ?? undefined;
-
-        if (hardReload) {
-          const today = new Date().toISOString().slice(0, 10);
-          await supabase
-            .from('daily_shopping')
-            .delete()
-            .eq('user_id', userData.user.id)
-            .eq('date', today);
-          console.log('[useShoppingRecs] 캐시 삭제');
-        }
       }
 
       const season = getWeatherSeason(weather);
@@ -67,8 +59,9 @@ export function useShoppingRecs(weather: WeatherSnapshot | null) {
         weather_condition: weather.condition,
         temp_avg: tempAvg,
         season,
+        refresh_seed: refreshSeed,  // 0이면 캐시 사용, >0이면 새로 fetch
       });
-      console.log('[useShoppingRecs] 상품:', res.products?.length ?? 0);
+      console.log('[useShoppingRecs] 상품:', res.products?.length ?? 0, 'refresh_seed:', refreshSeed);
       setResult(res);
     } catch (e: any) {
       console.warn('[useShoppingRecs] fail:', e);
@@ -78,16 +71,27 @@ export function useShoppingRecs(weather: WeatherSnapshot | null) {
     }
   }, [weather]);
 
+  // weather 변경 감지 → 다른 조건이면 새 fetch
   useEffect(() => {
-    if (weather) load(false);
+    if (!weather) return;
+    const currentKey = `${weather.condition}_${weather.temp_min_c}_${weather.temp_max_c}`;
+    if (currentKey !== lastWeatherKeyRef.current) {
+      lastWeatherKeyRef.current = currentKey;
+      load(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weather?.condition, weather?.temp_min_c, weather?.temp_max_c]);
+
+  /** 새로 찾기: 랜덤 시드 생성 → 캐시 우회 → 완전 다른 상품 */
+  const refresh = useCallback(() => {
+    const randomSeed = Date.now() + Math.floor(Math.random() * 10000);
+    load(randomSeed);
+  }, [load]);
 
   return {
     loading,
     error,
     products: result?.products ?? [],
-    /** 오늘 캐시 삭제 후 새로 fetch (다른 상품 pool) */
-    refresh: () => load(true),
+    refresh,
   };
 }

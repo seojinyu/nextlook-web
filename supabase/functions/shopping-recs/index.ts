@@ -1,34 +1,34 @@
 // deno-lint-ignore-file no-explicit-any
 /**
- * Shopping Recommendations Edge Function.
+ * Shopping Recommendations Edge Function v2.
  *
- * 성별·날씨·계절 기반으로 네이버 쇼핑에서 오늘의 아이템 추천.
- * 하루 1회 API 호출 후 daily_shopping 테이블에 캐싱.
- *
- * 환경 변수:
- *   NAVER_CLIENT_ID
- *   NAVER_CLIENT_SECRET
- *   COUPANG_PARTNER_ID  (승인 후 등록, 없으면 네이버 링크만)
+ * 개선사항:
+ * 1. refresh_seed로 매번 다른 상품 (새로 찾기 버튼)
+ * 2. 캐시 키에 weather 포함 (날짜별 다른 상품)
+ * 3. 트렌디 키워드 자동 추가 (인기·베스트·신상)
+ * 4. 네이버 API 랜덤 페이지네이션
+ * 5. 큰 pool에서 랜덤 3~9개 선택
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.103.0';
 
 interface Product {
-  id: string;           // productId
-  title: string;        // 상품명 (HTML 태그 제거됨)
-  image: string;        // 이미지 URL
-  price: number;        // 가격
-  mall: string;         // 쇼핑몰 이름 (쿠팡, 지마켓 등)
-  category: string;     // 카테고리
+  id: string;
+  title: string;
+  image: string;
+  price: number;
+  mall: string;
+  category: string;
   brand?: string;
-  productUrl: string;   // 실제 이동 URL (파트너 링크 or 네이버)
-  originalUrl: string;  // 원본 상품 URL (네이버)
+  productUrl: string;
+  originalUrl: string;
 }
 
 interface RequestBody {
-  gender?: string;              // male | female | other | prefer_not_to_say
-  weather_condition: string;    // Clear, Clouds, Rain, ...
+  gender?: string;
+  weather_condition: string;
   temp_avg: number;
   season: 'summer' | 'winter' | 'spring_fall';
+  refresh_seed?: number;  // 클라이언트에서 보내는 랜덤값 (새로 찾기용)
 }
 
 const CORS_HEADERS = {
@@ -55,30 +55,50 @@ Deno.serve(async (req) => {
     const body: RequestBody = await req.json();
     const today = new Date().toISOString().slice(0, 10);
 
-    // 1) 오늘 캐시 확인
-    const { data: existing } = await supabase
-      .from('daily_shopping')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', today)
-      .maybeSingle();
+    // 캐시 키에 weather + refresh_seed 반영
+    // refresh_seed가 있으면 캐시 skip (매번 새로 fetch)
+    const isRefresh = typeof body.refresh_seed === 'number' && body.refresh_seed > 0;
+    const weatherKey = `${body.weather_condition}_${body.temp_avg}`;
 
-    if (existing && Array.isArray(existing.products) && existing.products.length > 0) {
-      return json({ cached: true, ...existing });
+    // 1) 캐시 확인 (refresh 아닐 때만)
+    if (!isRefresh) {
+      const { data: existing } = await supabase
+        .from('daily_shopping')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle();
+
+      // 캐시 있고 같은 날씨 조건이면 반환
+      if (existing && Array.isArray(existing.products) && existing.products.length > 0
+          && existing.weather_condition === body.weather_condition
+          && existing.temp_avg === body.temp_avg) {
+        console.log('[shopping-recs] cache hit');
+        return json({ cached: true, ...existing });
+      }
+      // 캐시 있지만 날씨 다름 → 삭제하고 새로 fetch
+      if (existing) {
+        console.log('[shopping-recs] cache invalid (weather changed), regenerating');
+      }
+    } else {
+      console.log('[shopping-recs] refresh requested, bypassing cache');
     }
 
-    // 2) 날씨 → 카테고리 결정
-    const categories = getCategoriesForWeather(body);
-    console.log('[shopping-recs] categories:', categories);
+    // 2) 시드 생성: 날짜 + userId + weather + refresh_seed
+    const seed = `${today}-${userId}-${weatherKey}-${body.refresh_seed ?? 0}`;
 
-    // 3) 각 카테고리별 네이버 쇼핑 API 호출 (병렬)
+    // 3) 카테고리 결정 + 트렌디 키워드 추가
+    const categories = getCategoriesForWeather(body, seed);
+    console.log('[shopping-recs] queries:', categories);
+
+    // 4) 각 카테고리별 네이버 쇼핑 API 병렬 호출
     const results = await Promise.all(
-      categories.map((cat) => fetchNaverShopping(cat, body.gender)),
+      categories.map((cat, i) => fetchNaverShopping(cat, seed + '-' + i)),
     );
 
-    // 4) 결과 병합 + 중복 제거
+    // 5) 병합 + 중복 제거 + 셔플
     const seen = new Set<string>();
-    const products: Product[] = [];
+    let products: Product[] = [];
     for (const items of results) {
       for (const p of items) {
         if (!seen.has(p.id)) {
@@ -87,8 +107,7 @@ Deno.serve(async (req) => {
         }
       }
     }
-
-    // 최대 9개
+    products = seededShuffle(products, seed);
     const finalProducts = products.slice(0, 9);
     console.log('[shopping-recs] total products:', finalProducts.length);
 
@@ -96,7 +115,7 @@ Deno.serve(async (req) => {
       return json({ error: '상품을 찾지 못했어요' }, 502);
     }
 
-    // 5) DB 캐싱
+    // 6) DB 캐싱 (기존 것 덮어쓰기)
     const { data: inserted, error: insertErr } = await supabase
       .from('daily_shopping')
       .upsert(
@@ -134,10 +153,10 @@ function json(payload: unknown, status = 200) {
 }
 
 /**
- * 날씨·성별 → 검색 카테고리 목록 결정.
- * 매일 다른 상품이 나오도록 카테고리 pool에서 랜덤 선택.
+ * 날씨·성별 → 트렌디 검색 카테고리 결정.
+ * 인기·베스트·신상 modifier 랜덤 추가.
  */
-function getCategoriesForWeather(body: RequestBody): string[] {
+function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   const isFemale = body.gender === 'female';
   const isMale = body.gender === 'male';
   const prefix = isFemale ? '여성 ' : isMale ? '남성 ' : '';
@@ -151,6 +170,7 @@ function getCategoriesForWeather(body: RequestBody): string[] {
   if (body.season === 'summer' || body.temp_avg >= 25) {
     pool = [
       `${prefix}반팔티`,
+      `${prefix}반팔셔츠`,
       `${prefix}린넨셔츠`,
       `${prefix}반바지`,
       `${prefix}린넨팬츠`,
@@ -159,16 +179,21 @@ function getCategoriesForWeather(body: RequestBody): string[] {
       `${prefix}민소매`,
       isFemale ? '여성 원피스' : `${prefix}스니커즈`,
       `${prefix}썸머니트`,
+      `${prefix}오버핏 티셔츠`,
+      `${prefix}크롭 티셔츠`,
     ];
   } else if (body.season === 'winter' || body.temp_avg < 10) {
     pool = [
       `${prefix}패딩`,
+      `${prefix}롱패딩`,
       `${prefix}롱코트`,
+      `${prefix}울코트`,
       `${prefix}니트`,
+      `${prefix}오버핏 니트`,
       `${prefix}기모팬츠`,
       `${prefix}머플러`,
       `${prefix}부츠`,
-      `${prefix}장갑`,
+      `${prefix}첼시부츠`,
       `${prefix}후드집업`,
       `${prefix}터틀넥`,
     ];
@@ -176,42 +201,58 @@ function getCategoriesForWeather(body: RequestBody): string[] {
     // spring_fall
     pool = [
       `${prefix}가디건`,
+      `${prefix}오버핏 가디건`,
       `${prefix}자켓`,
+      `${prefix}블레이저`,
       `${prefix}트렌치코트`,
       `${prefix}맨투맨`,
+      `${prefix}후드티`,
       `${prefix}청바지`,
+      `${prefix}와이드 팬츠`,
       `${prefix}슬랙스`,
       `${prefix}블라우스`,
       `${prefix}긴팔티`,
       `${prefix}스니커즈`,
+      `${prefix}로퍼`,
     ];
   }
 
   // 날씨 modifier
   if (isRainy) {
-    pool.push(`${prefix}레인부츠`, '우산', `${prefix}방수자켓`);
+    pool.push(`${prefix}레인부츠`, '3단 우산', `${prefix}방수자켓`);
   }
   if (isSnowy) {
     pool.push(`${prefix}방한부츠`, `${prefix}털장갑`, `${prefix}비니`);
   }
 
-  // 매일 다른 카테고리 나오게 시드 셔플
-  const dateSeed = new Date().toISOString().slice(0, 10);
-  const shuffled = seededShuffle(pool, dateSeed);
+  // 시드 기반 셔플 (매번 다른 카테고리)
+  const shuffled = seededShuffle(pool, seed);
+  const selected = shuffled.slice(0, 4);
 
-  // 3~4개 선택
-  return shuffled.slice(0, 4);
+  // 트렌디 키워드 자동 추가 (일부 카테고리에만)
+  // 랜덤하게 '인기', '베스트', '신상' 추가
+  const trendModifiers = ['인기', '베스트', '신상', ''];
+  return selected.map((cat, i) => {
+    const modIdx = hashSeed(seed + `-trend-${i}`) % trendModifiers.length;
+    const mod = trendModifiers[modIdx];
+    return mod ? `${cat} ${mod}` : cat;
+  });
 }
 
-/** 시드 기반 셔플 (매일 다른 카테고리) */
-function seededShuffle<T>(arr: T[], seed: string): T[] {
-  const a = [...arr];
+/** 문자열 → 양수 해시 */
+function hashSeed(s: string): number {
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash) + s.charCodeAt(i);
     hash |= 0;
   }
-  let seedNum = Math.abs(hash);
+  return Math.abs(hash);
+}
+
+/** 시드 기반 Fisher-Yates 셔플 */
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  const a = [...arr];
+  let seedNum = hashSeed(seed);
   for (let i = a.length - 1; i > 0; i--) {
     seedNum = (seedNum * 9301 + 49297) % 233280;
     const j = seedNum % (i + 1);
@@ -222,9 +263,9 @@ function seededShuffle<T>(arr: T[], seed: string): T[] {
 
 /**
  * 네이버 쇼핑 API 호출.
- * https://developers.naver.com/docs/serviceapi/search/shopping/shopping.md
+ * 시드 기반 랜덤 페이지네이션 + 정렬 다양화.
  */
-async function fetchNaverShopping(query: string, _gender?: string): Promise<Product[]> {
+async function fetchNaverShopping(query: string, seed: string): Promise<Product[]> {
   const clientId = Deno.env.get('NAVER_CLIENT_ID');
   const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
   if (!clientId || !clientSecret) {
@@ -232,7 +273,12 @@ async function fetchNaverShopping(query: string, _gender?: string): Promise<Prod
     return [];
   }
 
-  const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=15&sort=sim`;
+  // 시드 기반 랜덤 페이지 (1~4)
+  const start = ((hashSeed(seed) % 4) * 10) + 1;
+  // 정렬 랜덤: sim(유사도) 또는 date(최신)
+  const sort = (hashSeed(seed + '-sort') % 2 === 0) ? 'sim' : 'date';
+
+  const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=20&start=${start}&sort=${sort}`;
 
   try {
     const res = await fetch(url, {
@@ -248,7 +294,9 @@ async function fetchNaverShopping(query: string, _gender?: string): Promise<Prod
     const data = await res.json();
     const items = (data.items || []) as any[];
 
-    return items.slice(0, 3).map((item): Product => {
+    // 시드 셔플 후 3개 선택
+    const shuffled = seededShuffle(items, seed);
+    return shuffled.slice(0, 3).map((item): Product => {
       const productUrl = buildAffiliateLink(item);
       return {
         id: String(item.productId ?? item.link),
@@ -268,28 +316,20 @@ async function fetchNaverShopping(query: string, _gender?: string): Promise<Prod
   }
 }
 
-/**
- * 어필리에이트 링크 생성.
- * - 쿠팡 상품이면 쿠팡 파트너 검색 링크 (승인 후 활성화)
- * - 그 외는 네이버 상품 페이지 링크 (기본)
- */
 function buildAffiliateLink(item: any): string {
   const originalUrl = item.link ?? '';
   const mall = item.mallName ?? '';
   const title = stripHtml(item.title ?? '');
   const coupangPartnerId = Deno.env.get('COUPANG_PARTNER_ID');
 
-  // 쿠팡 상품이고 파트너 ID 있으면 파트너 링크 사용
   if (mall === '쿠팡' && coupangPartnerId) {
     const searchUrl = `https://www.coupang.com/np/search?q=${encodeURIComponent(title)}`;
     return `https://link.coupang.com/re/AFFSDP?lptag=${coupangPartnerId}&pageKey=${encodeURIComponent(searchUrl)}&subId=nextlook`;
   }
 
-  // 그 외는 네이버 원본 링크
   return originalUrl;
 }
 
-/** HTML 태그 제거 (네이버 API 결과의 <b> 태그) */
 function stripHtml(str: string): string {
   return str.replace(/<[^>]+>/g, '').trim();
 }
