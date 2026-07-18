@@ -26,8 +26,8 @@ import SectionHeader from './components/SectionHeader';
 import SuggestionCard from './components/SuggestionCard';
 import EmptyState from './components/EmptyState';
 import NoteModal from './components/NoteModal';
-import InspirationSection from './components/InspirationSection';
-import { useInspiration } from './useInspiration';
+import ShoppingSection from './components/ShoppingSection';
+import { useShoppingRecs } from './useShoppingRecs';
 
 export default function RecommendScreen() {
   const insets = useSafeAreaInsets();
@@ -46,7 +46,7 @@ export default function RecommendScreen() {
     selectDate, refresh, getCachedClothes,
   } = useRecommendData();
 
-  const inspiration = useInspiration(weather);
+  const shopping = useShoppingRecs(weather);
 
   const handleSelectDate = (days: number) => {
     setSelectedDays(days);
@@ -103,13 +103,13 @@ export default function RecommendScreen() {
         {weather && <WeatherCard weather={weather} />}
       </View>
 
-      {/* 오늘의 스타일 영감 (30장 pool → 랜덤 3장 표시) */}
-      <InspirationSection
-        loading={inspiration.loading}
-        error={inspiration.error}
-        images={inspiration.images}
-        poolSize={inspiration.poolSize}
-        onRotate={inspiration.rotate}
+      {/* 오늘의 쇼핑 추천 (성별·날씨 맞춤 실제 상품) */}
+      <ShoppingSection
+        loading={shopping.loading}
+        error={shopping.error}
+        products={shopping.products}
+        weather={weather}
+        onRefresh={shopping.refresh}
       />
 
       <View style={{ paddingHorizontal: H_PAD }}>

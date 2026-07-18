@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>NextLook - Features Single</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.poster {
+  width: 1080px;
+  height: 1350px;
+  background: #F5F0E8;
+  position: relative;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  overflow: hidden;
+  padding: 60px 70px 50px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 상단 헤더 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #1A1A1A;
+  margin-bottom: 40px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accent {
+  width: 32px;
+  height: 3px;
+  background: #1B6B4A;
+  border-radius: 2px;
+}
+.header-tag {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 4px;
+}
+.header-right {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #7A7570;
+  letter-spacing: 3px;
+}
+
+/* 브랜드 */
+.brand-section {
+  margin-bottom: 40px;
+}
+.brand-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 130px;
+  font-weight: 900;
+  color: #1A1A1A;
+  line-height: 1;
+  letter-spacing: -5px;
+  margin-bottom: 12px;
+}
+.brand-tagline {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: -0.5px;
+}
+.brand-tagline .highlight {
+  color: #1B6B4A;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-weight: 700;
+}
+
+/* 기능 리스트 */
+.features {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  border-left: 4px solid #1B6B4A;
+}
+.feature-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: #1B6B4A;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-style: italic;
+  min-width: 60px;
+}
+.feature-content {
+  flex: 1;
+}
+.feature-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #1B6B4A;
+  letter-spacing: 2.5px;
+  margin-bottom: 4px;
+}
+.feature-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+.feature-desc {
+  font-size: 15px;
+  font-weight: 500;
+  color: #7A7570;
+  line-height: 1.4;
+}
+
+/* 하단 CTA */
+.bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24px;
+  border-top: 2px solid #1A1A1A;
+}
+.bottom-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.free-tag {
+  display: inline-block;
+  padding: 6px 14px;
+  background: #1B6B4A;
+  color: #fff;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  align-self: flex-start;
+  margin-bottom: 6px;
+}
+.cta-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-style: italic;
+  color: #1A1A1A;
+  font-weight: 500;
+}
+.bottom-right {
+  text-align: right;
+}
+.arrow-tag {
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  color: #1B6B4A;
+  font-weight: 700;
+  margin-bottom: 4px;
+  transform: rotate(-3deg);
+  display: inline-block;
+}
+.url {
+  font-size: 22px;
+  font-weight: 900;
+  color: #1A1A1A;
+  letter-spacing: 1px;
+}
+
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="header">
+    <div class="header-left">
+      <div class="accent"></div>
+      <div class="header-tag">FEATURES · JULY 2026</div>
+    </div>
+    <div class="header-right">NO. 001</div>
+  </div>
+
+  <div class="brand-section">
+    <div class="brand-name">NextLook</div>
+    <div class="brand-tagline">
+      <span class="highlight">AI가 골라주는</span> 오늘의 코디.
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-num">01</div>
+      <div class="feature-content">
+        <div class="feature-label">AI ANALYSIS</div>
+        <div class="feature-title">옷 사진 자동 분석</div>
+        <div class="feature-desc">
+          사진 한 장이면 카테고리·색상·계절까지 AI가 자동 인식
+        </div>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-num">02</div>
+      <div class="feature-content">
+        <div class="feature-label">BACKGROUND REMOVAL</div>
+        <div class="feature-title">배경 자동 제거</div>
+        <div class="feature-desc">
+          매거진 화보처럼 옷만 깔끔하게 정리되는 옷장
+        </div>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-num">03</div>
+      <div class="feature-content">
+        <div class="feature-label">DAILY RECOMMENDATION</div>
+        <div class="feature-title">매일 3가지 코디 추천</div>
+        <div class="feature-desc">
+          14일 날씨 예보 기반 · 색상 매칭 자동 계산
+        </div>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-num">04</div>
+      <div class="feature-content">
+        <div class="feature-label">STYLE MOOD</div>
+        <div class="feature-title">인플루언서 룩 30가지</div>
+        <div class="feature-desc">
+          성별·날씨 맞춤 큐레이션 · 매일 새로운 스타일 무드
+        </div>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-num">05</div>
+      <div class="feature-content">
+        <div class="feature-label">MEMORY & STATS</div>
+        <div class="feature-title">코디 기록 & 통계</div>
+        <div class="feature-desc">
+          자주 입는 옷 TOP 3 · 활용 안 하는 옷 발견
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="bottom-left">
+      <div class="free-tag">FREE · NO ADS</div>
+      <div class="cta-text">Start today.</div>
+    </div>
+    <div class="bottom-right">
+      <div class="arrow-tag">→ visit now</div>
+      <div class="url">nextlook.co.kr</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

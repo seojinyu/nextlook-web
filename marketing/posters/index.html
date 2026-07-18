@@ -56,9 +56,18 @@ body {
   color: #1B6B4A;
   font-weight: 600;
 }
+.section-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #1A1A1A;
+  margin: 40px 0 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #1B6B4A;
+  letter-spacing: -0.5px;
+}
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
 }
 .card {
@@ -75,9 +84,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 .card-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
   color: #1A1A1A;
 }
@@ -89,8 +99,11 @@ body {
   padding: 4px 10px;
   border-radius: 6px;
   letter-spacing: 1px;
+  white-space: nowrap;
 }
 .card-tag.story { background: #1A1A1A; }
+.card-tag.carousel { background: #C49A3C; }
+.card-tag.feature { background: #3D5A80; }
 .preview {
   width: 100%;
   aspect-ratio: 1;
@@ -100,6 +113,34 @@ body {
 }
 .preview.tall { aspect-ratio: 4/5; }
 .preview.story { aspect-ratio: 9/16; }
+.preview.carousel-preview {
+  aspect-ratio: 4/5;
+  background: linear-gradient(135deg, #F5F0E8 0%, #E5DDD0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.carousel-icon {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.carousel-mini {
+  width: 60px;
+  height: 60px;
+  background: #fff;
+  border-radius: 8px;
+  border: 2px solid #1B6B4A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: 24px;
+  color: #1B6B4A;
+  font-style: italic;
+}
 .preview iframe {
   border: 0;
   transform-origin: top left;
@@ -125,126 +166,191 @@ body {
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+.recommended-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  background: #1B6B4A;
+  color: #fff;
+  border-radius: 100px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-left: 6px;
+}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <div class="title">NextLook 인스타 포스터 갤러리</div>
-    <div class="subtitle">클릭하면 새 창에서 열립니다 · 스크린샷 or 인쇄로 저장</div>
+    <div class="subtitle">클릭하면 새 창에서 열립니다 · 스크린샷 or F12로 저장</div>
   </div>
 
   <div class="instructions">
     <h3>📸 어떻게 저장하나요?</h3>
     <ol>
       <li>포스터 카드의 <b>"열기"</b> 버튼 클릭 → 새 창에서 실제 크기로 열림</li>
-      <li>화면에 포스터만 보이도록 <code>F11</code> (전체화면) 눌러도 좋음</li>
-      <li>Windows: <code>Windows + Shift + S</code> → 포스터 영역 드래그 → 자동 클립보드 저장</li>
+      <li>Windows: <code>Windows + Shift + S</code> → 포스터 영역 드래그 → 클립보드 저장</li>
       <li>Mac: <code>Command + Shift + 4</code> → 포스터 드래그 → 데스크탑 저장</li>
-      <li>또는 브라우저에서 <code>Ctrl + P</code> → "PDF로 저장" 선택</li>
-      <li>저장한 이미지를 인스타그램에 업로드!</li>
+      <li>고해상도: <code>F12</code> → 반응형 모드 → 1080px × 1080px → 우클릭 "이미지 저장"</li>
+      <li>저장한 이미지 → 인스타그램 업로드</li>
     </ol>
   </div>
 
+  <div class="section-title">📱 기능 소개 게시물 (신규)</div>
+
   <div class="grid">
-    <!-- Poster 1 -->
+    <!-- Feature Single -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">#1 히어로</div>
-        <div class="card-tag">1:1 FEED</div>
+        <div class="card-title">#9 기능 종합 소개 <span class="recommended-tag">RECOMMENDED</span></div>
+        <div class="card-tag feature">4:5 FEED</div>
       </div>
-      <div class="preview">
-        <iframe src="01-hero.html" width="1080" height="1080" style="transform: scale(0.315);"></iframe>
+      <div class="preview tall">
+        <iframe src="09-features-single.html" width="1080" height="1350" style="transform: scale(0.297);"></iframe>
       </div>
       <div class="card-body">
-        <div class="card-desc">첫 게시글 최강. "매일 아침 옷 뭐 입지?" 공감 훅.</div>
-        <a class="card-btn" href="01-hero.html" target="_blank">열기</a>
+        <div class="card-desc">5가지 기능 한 눈에. 단일 게시물로 앱 전체 소개.</div>
+        <a class="card-btn" href="09-features-single.html" target="_blank">열기</a>
       </div>
     </div>
 
-    <!-- Poster 2 -->
+    <!-- Carousel -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">#2 팩트 12분</div>
-        <div class="card-tag">1:1 FEED</div>
+        <div class="card-title">#10 캐러셀 6장 <span class="recommended-tag">HOT</span></div>
+        <div class="card-tag carousel">6 SLIDES</div>
       </div>
-      <div class="preview">
-        <iframe src="02-stats.html" width="1080" height="1080" style="transform: scale(0.315);"></iframe>
+      <div class="preview carousel-preview">
+        <div class="carousel-icon">
+          <div class="carousel-mini">01</div>
+          <div class="carousel-mini">02</div>
+          <div class="carousel-mini">03</div>
+        </div>
       </div>
       <div class="card-body">
-        <div class="card-desc">공유 폭발형. 통계 임팩트로 저장·공유 유도.</div>
-        <a class="card-btn" href="02-stats.html" target="_blank">열기</a>
+        <div class="card-desc">Cover + 4 features + CTA. 인게이지먼트 최고.</div>
+        <a class="card-btn" href="10-carousel.html" target="_blank">열기</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">🌱 감성 무드 (매거진)</div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">#8 무드 매거진</div>
+        <div class="card-tag">4:5 FEED</div>
+      </div>
+      <div class="preview tall">
+        <iframe src="08-mood-single.html" width="1080" height="1350" style="transform: scale(0.297);"></iframe>
+      </div>
+      <div class="card-body">
+        <div class="card-desc">K-패션 매거진 감성. 폴라로이드 + 손글씨.</div>
+        <a class="card-btn" href="08-mood-single.html" target="_blank">열기</a>
       </div>
     </div>
 
-    <!-- Poster 3 -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">#3 A vs B 질문</div>
-        <div class="card-tag">1:1 FEED</div>
-      </div>
-      <div class="preview">
-        <iframe src="03-question.html" width="1080" height="1080" style="transform: scale(0.315);"></iframe>
-      </div>
-      <div class="card-body">
-        <div class="card-desc">댓글 폭발형. 알고리즘 노출 극대화.</div>
-        <a class="card-btn" href="03-question.html" target="_blank">열기</a>
-      </div>
-    </div>
-
-    <!-- Poster 4 -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">#4 매거진 표지</div>
         <div class="card-tag">4:5 FEED</div>
       </div>
       <div class="preview tall">
-        <iframe src="04-magazine.html" width="1080" height="1350" style="transform: scale(0.315);"></iframe>
+        <iframe src="04-magazine.html" width="1080" height="1350" style="transform: scale(0.297);"></iframe>
       </div>
       <div class="card-body">
         <div class="card-desc">프로필 첫인상 · 저장률 최상. 세로 4:5.</div>
         <a class="card-btn" href="04-magazine.html" target="_blank">열기</a>
       </div>
     </div>
+  </div>
 
-    <!-- Poster 5 -->
+  <div class="section-title">🎯 훅·바이럴</div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">#1 히어로</div>
+        <div class="card-tag">1:1 FEED</div>
+      </div>
+      <div class="preview">
+        <iframe src="01-hero.html" width="1080" height="1080" style="transform: scale(0.298);"></iframe>
+      </div>
+      <div class="card-body">
+        <div class="card-desc">첫 게시글 최강. "매일 아침 옷 뭐 입지?"</div>
+        <a class="card-btn" href="01-hero.html" target="_blank">열기</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">#2 팩트 12분</div>
+        <div class="card-tag">1:1 FEED</div>
+      </div>
+      <div class="preview">
+        <iframe src="02-stats.html" width="1080" height="1080" style="transform: scale(0.298);"></iframe>
+      </div>
+      <div class="card-body">
+        <div class="card-desc">공유 폭발형. 통계 임팩트.</div>
+        <a class="card-btn" href="02-stats.html" target="_blank">열기</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">#3 A vs B</div>
+        <div class="card-tag">1:1 FEED</div>
+      </div>
+      <div class="preview">
+        <iframe src="03-question.html" width="1080" height="1080" style="transform: scale(0.298);"></iframe>
+      </div>
+      <div class="card-body">
+        <div class="card-desc">댓글 폭발형. 알고리즘 노출 UP.</div>
+        <a class="card-btn" href="03-question.html" target="_blank">열기</a>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">
         <div class="card-title">#5 다크 임팩트</div>
         <div class="card-tag">1:1 FEED</div>
       </div>
       <div class="preview">
-        <iframe src="05-dark.html" width="1080" height="1080" style="transform: scale(0.315);"></iframe>
+        <iframe src="05-dark.html" width="1080" height="1080" style="transform: scale(0.298);"></iframe>
       </div>
       <div class="card-body">
-        <div class="card-desc">스크롤 스톱형. 다크 톤으로 피드에서 확 튐.</div>
+        <div class="card-desc">스크롤 스톱형. 다크 임팩트.</div>
         <a class="card-btn" href="05-dark.html" target="_blank">열기</a>
       </div>
     </div>
+  </div>
 
-    <!-- Story 1 -->
+  <div class="section-title">📱 인스타 스토리</div>
+
+  <div class="grid">
     <div class="card">
       <div class="card-header">
-        <div class="card-title">#6 스토리 - 훅</div>
+        <div class="card-title">#6 스토리 훅</div>
         <div class="card-tag story">9:16 STORY</div>
       </div>
       <div class="preview story">
-        <iframe src="06-story-hook.html" width="1080" height="1920" style="transform: scale(0.315);"></iframe>
+        <iframe src="06-story-hook.html" width="1080" height="1920" style="transform: scale(0.298);"></iframe>
       </div>
       <div class="card-body">
-        <div class="card-desc">인스타 스토리 · 링크 스티커와 조합 추천.</div>
+        <div class="card-desc">스토리 · 링크 스티커 조합.</div>
         <a class="card-btn" href="06-story-hook.html" target="_blank">열기</a>
       </div>
     </div>
 
-    <!-- Story 2 -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">#7 스토리 - 후기</div>
+        <div class="card-title">#7 스토리 후기</div>
         <div class="card-tag story">9:16 STORY</div>
       </div>
       <div class="preview story">
-        <iframe src="07-story-quote.html" width="1080" height="1920" style="transform: scale(0.315);"></iframe>
+        <iframe src="07-story-quote.html" width="1080" height="1920" style="transform: scale(0.298);"></iframe>
       </div>
       <div class="card-body">
         <div class="card-desc">감성 후기 다크 스토리. 신뢰도 UP.</div>
