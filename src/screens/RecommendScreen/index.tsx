@@ -46,7 +46,7 @@ export default function RecommendScreen() {
     selectDate, refresh, getCachedClothes,
   } = useRecommendData();
 
-  const shopping = useShoppingRecs(weather);
+  const shopping = useShoppingRecs(weather, date);
 
   const handleSelectDate = (days: number) => {
     setSelectedDays(days);

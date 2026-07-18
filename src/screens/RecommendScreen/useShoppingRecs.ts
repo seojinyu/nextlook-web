@@ -1,7 +1,7 @@
 /**
- * 오늘의 쇼핑 추천 훅 (v2).
- * - refresh 시 랜덤 시드 생성 → 매번 다른 상품
- * - weather 변경 시 자동 새 fetch (다른 날짜 예보 → 다른 상품)
+ * 오늘의 쇼핑 추천 훅 (v3).
+ * - target_date 전달 → 같은 날씨여도 다른 날짜면 다른 상품
+ * - refresh 시 랜덤 시드 생성
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, invokeEdge } from '../../lib/supabase';
@@ -27,13 +27,12 @@ interface Result {
   gender?: string;
 }
 
-export function useShoppingRecs(weather: WeatherSnapshot | null) {
+export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
-  // 마지막 로드한 weather 조건 (동일 조건이면 재로드 안 함)
-  const lastWeatherKeyRef = useRef<string>('');
+  const lastKeyRef = useRef<string>('');
 
   const load = useCallback(async (refreshSeed = 0) => {
     if (!weather) return;
@@ -59,9 +58,11 @@ export function useShoppingRecs(weather: WeatherSnapshot | null) {
         weather_condition: weather.condition,
         temp_avg: tempAvg,
         season,
-        refresh_seed: refreshSeed,  // 0이면 캐시 사용, >0이면 새로 fetch
+        target_date: targetDate,
+        refresh_seed: refreshSeed,
       });
-      console.log('[useShoppingRecs] 상품:', res.products?.length ?? 0, 'refresh_seed:', refreshSeed);
+      console.log('[useShoppingRecs] 상품:', res.products?.length ?? 0,
+                  'date:', targetDate, 'refresh:', refreshSeed);
       setResult(res);
     } catch (e: any) {
       console.warn('[useShoppingRecs] fail:', e);
@@ -69,20 +70,20 @@ export function useShoppingRecs(weather: WeatherSnapshot | null) {
     } finally {
       setLoading(false);
     }
-  }, [weather]);
+  }, [weather, targetDate]);
 
-  // weather 변경 감지 → 다른 조건이면 새 fetch
+  // weather 또는 target_date 변경 감지 → 새 fetch
   useEffect(() => {
     if (!weather) return;
-    const currentKey = `${weather.condition}_${weather.temp_min_c}_${weather.temp_max_c}`;
-    if (currentKey !== lastWeatherKeyRef.current) {
-      lastWeatherKeyRef.current = currentKey;
+    // 키에 date 포함 → 같은 날씨여도 다른 날짜면 재로드
+    const currentKey = `${targetDate}_${weather.condition}_${weather.temp_min_c}_${weather.temp_max_c}`;
+    if (currentKey !== lastKeyRef.current) {
+      lastKeyRef.current = currentKey;
       load(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weather?.condition, weather?.temp_min_c, weather?.temp_max_c]);
+  }, [targetDate, weather?.condition, weather?.temp_min_c, weather?.temp_max_c]);
 
-  /** 새로 찾기: 랜덤 시드 생성 → 캐시 우회 → 완전 다른 상품 */
   const refresh = useCallback(() => {
     const randomSeed = Date.now() + Math.floor(Math.random() * 10000);
     load(randomSeed);
