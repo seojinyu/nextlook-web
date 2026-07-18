@@ -103,13 +103,14 @@ export default function RecommendScreen() {
         {weather && <WeatherCard weather={weather} />}
       </View>
 
-      {/* 오늘의 쇼핑 추천 (성별·날씨 맞춤 실제 상품) */}
+      {/* 오늘의 쇼핑 추천 (성별·나이·날씨 맞춤 실제 상품) */}
       <ShoppingSection
         loading={shopping.loading}
         error={shopping.error}
         products={shopping.products}
         weather={weather}
         userGender={shopping.userGender}
+        userAgeRange={shopping.userAgeRange}
         onRefresh={shopping.refresh}
       />
 

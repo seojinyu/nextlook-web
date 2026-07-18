@@ -24,10 +24,11 @@ interface Product {
 
 interface RequestBody {
   gender?: string;
+  age_range?: string;      // 10s | 20s | 30s | 40s | 50s+
   weather_condition: string;
   temp_avg: number;
   season: 'summer' | 'winter' | 'spring_fall';
-  target_date?: string;    // YYYY-MM-DD (선택한 예보 날짜)
+  target_date?: string;    // YYYY-MM-DD
   refresh_seed?: number;
 }
 
@@ -51,16 +52,51 @@ const SNEAKER_MODELS = [
   '온러닝 스니커즈',
 ];
 
-// 트렌디 브랜드 modifier (일부 카테고리에 랜덤 추가)
-const TRENDY_BRANDS = [
-  '유니클로',
-  '무신사스탠다드',
-  '커버낫',
-  '스파오',
-  '지오다노',
-  '탑텐',
-  '에잇세컨즈',
-  '무신사',
+// 나이대별 브랜드 pool (해당 나이대가 선호하는 브랜드)
+const AGE_BRANDS: Record<string, string[]> = {
+  '10s': ['에잇세컨즈', '무신사', '스파오', '탑텐', '커버낫', 'MLB'],
+  '20s': ['무신사스탠다드', '유니클로', '커버낫', '스파오', '지오다노', '탑텐', '무신사'],
+  '30s': ['유니클로', '자라', '망고', '무인양품', '코스', '라코스테', '토미힐피거'],
+  '40s': ['유니클로', '자라', '폴로', '라코스테', '헤지스', '빈폴', '타미힐피거'],
+  '50s+': ['유니클로', '폴로', '헤지스', '빈폴', '올리비아로렌', 'K2', '노스페이스'],
+};
+
+// 나이대별 스타일 modifier
+const AGE_STYLE_MODIFIERS: Record<string, string[]> = {
+  '10s': ['오버핏', '크롭', '스트릿', '유니크', 'Y2K', '루즈핏'],
+  '20s': ['오버핏', '와이드', '스트릿', '트렌디', '미니멀', '슬림'],
+  '30s': ['슬림', '베이직', '미니멀', '클래식', '레귤러핏', '모던'],
+  '40s': ['클래식', '베이직', '레귤러핏', '컴포트', '슬림'],
+  '50s+': ['베이직', '편안한', '레귤러핏', '클래식'],
+};
+
+// 나이대별 선호 스니커즈
+const AGE_SNEAKERS: Record<string, string[]> = {
+  '10s': [
+    '나이키 덩크', '나이키 조던', '아디다스 삼바', '아디다스 가젤',
+    '뉴발란스 530', '반스 올드스쿨', '컨버스 척테일러',
+  ],
+  '20s': [
+    '뉴발란스 530', '뉴발란스 574', '나이키 에어포스', '나이키 덩크',
+    '아디다스 삼바', '아디다스 가젤', '아디다스 스탠스미스', '반스 올드스쿨',
+  ],
+  '30s': [
+    '뉴발란스 574', '뉴발란스 992', '나이키 에어포스', '아디다스 스탠스미스',
+    '컨버스 척테일러', '온러닝 스니커즈', '푸마 스웨이드',
+  ],
+  '40s': [
+    '뉴발란스 992', '뉴발란스 993', '아디다스 스탠스미스', '나이키 에어맥스',
+    '온러닝 스니커즈', '아식스 스니커즈',
+  ],
+  '50s+': [
+    '뉴발란스 워킹화', '나이키 에어맥스', '아식스 스니커즈', '아디다스 워킹화',
+    '컴포트 스니커즈',
+  ],
+};
+
+// 기본 트렌디 브랜드 (나이대 미설정 시)
+const DEFAULT_BRANDS = [
+  '유니클로', '무신사스탠다드', '커버낫', '스파오', '지오다노',
 ];
 
 const CORS_HEADERS = {
@@ -261,24 +297,34 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   const shuffledClothing = seededShuffle(clothingPool, seed);
   const selectedClothing = shuffledClothing.slice(0, 3);
 
-  // 트렌디 브랜드 modifier 랜덤 추가 (옷에만)
+  // 나이대별 브랜드/스타일 선택 (미설정이면 기본)
+  const ageKey = body.age_range && AGE_BRANDS[body.age_range] ? body.age_range : null;
+  const brandPool = ageKey ? AGE_BRANDS[ageKey] : DEFAULT_BRANDS;
+  const styleModifiers = ageKey ? AGE_STYLE_MODIFIERS[ageKey] : ['오버핏', '베이직', '슬림'];
+
+  // 옷 카테고리에 나이대 브랜드/스타일 modifier 랜덤 추가
   const withBrands = selectedClothing.map((cat, i) => {
-    const useBrand = (hashSeed(seed + `-brand-${i}`) % 3) === 0; // 33% 확률
-    if (useBrand) {
-      const brandIdx = hashSeed(seed + `-brand-select-${i}`) % TRENDY_BRANDS.length;
-      return `${TRENDY_BRANDS[brandIdx]} ${cat}`;
+    const modType = hashSeed(seed + `-modtype-${i}`) % 3;
+    // 0: 브랜드 추가 (33%)
+    // 1: 스타일 modifier (33%)
+    // 2: 인기/베스트 modifier (33%)
+    if (modType === 0) {
+      const brandIdx = hashSeed(seed + `-brand-${i}`) % brandPool.length;
+      return `${brandPool[brandIdx]} ${cat}`;
+    } else if (modType === 1) {
+      const styleIdx = hashSeed(seed + `-style-${i}`) % styleModifiers.length;
+      return `${styleModifiers[styleIdx]} ${cat}`;
+    } else {
+      const modifiers = ['인기', '베스트', '신상'];
+      const modIdx = hashSeed(seed + `-trend-${i}`) % modifiers.length;
+      return `${cat} ${modifiers[modIdx]}`;
     }
-    // 그 외는 트렌디 modifier
-    const modifiers = ['', '인기', '베스트', '신상'];
-    const modIdx = hashSeed(seed + `-mod-${i}`) % modifiers.length;
-    const mod = modifiers[modIdx];
-    return mod ? `${cat} ${mod}` : cat;
   });
 
-  // 신발은 항상 스니커즈 브랜드 (성별 프리픽스 추가)
-  const shoeIdx = hashSeed(seed + '-shoe') % SNEAKER_MODELS.length;
-  const sneakerModel = SNEAKER_MODELS[shoeIdx];
-  // 성별 있으면 "여성 뉴발란스 530", "남성 나이키 에어포스" 형식
+  // 신발: 나이대별 선호 스니커즈에서 선택 (없으면 기본 pool)
+  const sneakerPool = ageKey ? AGE_SNEAKERS[ageKey] : SNEAKER_MODELS;
+  const shoeIdx = hashSeed(seed + '-shoe') % sneakerPool.length;
+  const sneakerModel = sneakerPool[shoeIdx];
   const sneakerQuery = prefix ? `${prefix.trim()} ${sneakerModel}` : sneakerModel;
 
   return [...withBrands, sneakerQuery];

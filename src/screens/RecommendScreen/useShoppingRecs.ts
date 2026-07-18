@@ -32,6 +32,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [userGender, setUserGender] = useState<string | null>(null);
+  const [userAgeRange, setUserAgeRange] = useState<string | null>(null);
 
   const lastKeyRef = useRef<string>('');
 
@@ -42,14 +43,17 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     try {
       const { data: userData } = await supabase.auth.getUser();
       let gender: string | undefined;
+      let ageRange: string | undefined;
       if (userData.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('gender')
+          .select('gender, age_range')
           .eq('id', userData.user.id)
           .maybeSingle();
         gender = profile?.gender ?? undefined;
+        ageRange = profile?.age_range ?? undefined;
         setUserGender(gender ?? null);
+        setUserAgeRange(ageRange ?? null);
       }
 
       const season = getWeatherSeason(weather);
@@ -57,6 +61,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
 
       const res = await invokeEdge<Result>('shopping-recs', {
         gender,
+        age_range: ageRange,
         weather_condition: weather.condition,
         temp_avg: tempAvg,
         season,
@@ -95,7 +100,8 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     loading,
     error,
     products: result?.products ?? [],
-    userGender,  // 'male' | 'female' | 'other' | null
+    userGender,   // 'male' | 'female' | 'other' | null
+    userAgeRange, // '10s' | '20s' | '30s' | '40s' | '50s+' | null
     refresh,
   };
 }
