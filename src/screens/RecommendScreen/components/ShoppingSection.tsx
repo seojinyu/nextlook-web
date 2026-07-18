@@ -127,6 +127,12 @@ export default function ShoppingSection({ loading, error, products, weather, onR
         ))}
       </ScrollView>
 
+      {/* 어필리에이트 명시 (미니멀 · 법적 필수) */}
+      <View style={{ paddingHorizontal: H_PAD, marginTop: 10, opacity: 0.45 }}>
+        <Text style={{ fontSize: 9, color: '#B5B0AB', letterSpacing: 0.2 }}>
+          · 파트너스 활동으로 수수료를 받을 수 있어요
+        </Text>
+      </View>
     </View>
   );
 }
