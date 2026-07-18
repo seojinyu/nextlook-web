@@ -31,8 +31,8 @@ interface RequestBody {
   refresh_seed?: number;
 }
 
-// 스니커즈 브랜드 쿼리 (신발은 이것만)
-const SNEAKER_QUERIES = [
+// 스니커즈 브랜드 쿼리 (성별 프리픽스는 아래에서 동적 추가)
+const SNEAKER_MODELS = [
   '뉴발란스 스니커즈',
   '뉴발란스 530',
   '뉴발란스 574',
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       categories.map((cat, i) => fetchNaverShopping(cat, seed + '-' + i)),
     );
 
-    // 5) 병합 + 중복 제거 + 셔플
+    // 5) 병합 + 중복 제거 + 성별 필터 + 셔플
     const seen = new Set<string>();
     let products: Product[] = [];
     for (const items of results) {
@@ -131,6 +131,8 @@ Deno.serve(async (req) => {
         }
       }
     }
+    // 성별 반대 상품 제외 (예: 남성이면 여성 카테고리 제거)
+    products = filterByGender(products, body.gender);
     products = seededShuffle(products, seed);
     const finalProducts = products.slice(0, 9);
     console.log('[shopping-recs] total products:', finalProducts.length);
@@ -273,11 +275,48 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
     return mod ? `${cat} ${mod}` : cat;
   });
 
-  // 신발은 항상 스니커즈 브랜드 하나 선택
-  const shoeIdx = hashSeed(seed + '-shoe') % SNEAKER_QUERIES.length;
-  const sneakerQuery = SNEAKER_QUERIES[shoeIdx];
+  // 신발은 항상 스니커즈 브랜드 (성별 프리픽스 추가)
+  const shoeIdx = hashSeed(seed + '-shoe') % SNEAKER_MODELS.length;
+  const sneakerModel = SNEAKER_MODELS[shoeIdx];
+  // 성별 있으면 "여성 뉴발란스 530", "남성 나이키 에어포스" 형식
+  const sneakerQuery = prefix ? `${prefix.trim()} ${sneakerModel}` : sneakerModel;
 
   return [...withBrands, sneakerQuery];
+}
+
+/**
+ * 성별 반대 카테고리 상품 필터링.
+ * 예: 남성 사용자 → 여성/여자 키워드 있는 상품 제외
+ */
+function filterByGender(products: Product[], gender?: string): Product[] {
+  if (!gender || gender === 'other' || gender === 'prefer_not_to_say') {
+    return products; // 성별 미설정 시 필터링 안 함
+  }
+
+  const oppositeKeywords = gender === 'female'
+    ? ['남성', '남자', '남아', '보이즈', "men's", 'mens', 'male', ' 남 ']
+    : ['여성', '여자', '여아', '걸즈', "women's", 'womens', 'female', ' 여 '];
+
+  const oppositeCategories = gender === 'female'
+    ? ['남성의류', '남성패션', '남자패션']
+    : ['여성의류', '여성패션', '여자패션'];
+
+  return products.filter((p) => {
+    const titleLower = p.title.toLowerCase();
+    const categoryLower = (p.category || '').toLowerCase();
+
+    // 제목에 반대 성별 키워드 있으면 제외
+    for (const kw of oppositeKeywords) {
+      if (titleLower.includes(kw.toLowerCase())) return false;
+    }
+
+    // 카테고리가 반대 성별이면 제외
+    for (const cat of oppositeCategories) {
+      if (categoryLower.includes(cat.toLowerCase())) return false;
+    }
+
+    return true;
+  });
 }
 
 function hashSeed(s: string): number {

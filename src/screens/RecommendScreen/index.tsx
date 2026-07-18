@@ -109,6 +109,7 @@ export default function RecommendScreen() {
         error={shopping.error}
         products={shopping.products}
         weather={weather}
+        userGender={shopping.userGender}
         onRefresh={shopping.refresh}
       />
 

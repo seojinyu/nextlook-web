@@ -19,14 +19,17 @@ interface Props {
   error: string | null;
   products: ShoppingProduct[];
   weather: WeatherSnapshot | null;
+  userGender?: string | null;
   onRefresh?: () => void;
 }
 
-export default function ShoppingSection({ loading, error, products, weather, onRefresh }: Props) {
+export default function ShoppingSection({
+  loading, error, products, weather, userGender, onRefresh,
+}: Props) {
   if (loading) {
     return (
       <View style={{ paddingHorizontal: H_PAD, paddingBottom: 24 }}>
-        <SectionHeader weather={weather} onRefresh={undefined} />
+        <SectionHeader weather={weather} userGender={userGender} onRefresh={undefined} />
         <View
           style={{
             height: 280,
@@ -50,8 +53,28 @@ export default function ShoppingSection({ loading, error, products, weather, onR
   return (
     <View style={{ paddingBottom: 28 }}>
       <View style={{ paddingHorizontal: H_PAD }}>
-        <SectionHeader weather={weather} onRefresh={onRefresh} />
+        <SectionHeader weather={weather} userGender={userGender} onRefresh={onRefresh} />
       </View>
+
+      {/* 성별 미설정 안내 (앱 하단에 slim하게) */}
+      {(!userGender || userGender === 'other' || userGender === 'prefer_not_to_say') && (
+        <View
+          style={{
+            marginHorizontal: H_PAD,
+            marginBottom: 12,
+            padding: 10,
+            backgroundColor: 'rgba(196, 154, 60, 0.08)',
+            borderRadius: 10,
+            borderLeftWidth: 3,
+            borderLeftColor: '#C49A3C',
+          }}
+        >
+          <Text style={{ fontSize: 11, color: '#7A7570', lineHeight: 15 }}>
+            <Text style={{ fontWeight: '800', color: '#C49A3C' }}>💡 팁: </Text>
+            프로필에 성별 설정하면 남자/여자 맞춤 상품만 추천해드려요.
+          </Text>
+        </View>
+      )}
 
       <ScrollView
         horizontal
@@ -139,9 +162,11 @@ export default function ShoppingSection({ loading, error, products, weather, onR
 
 function SectionHeader({
   weather,
+  userGender,
   onRefresh,
 }: {
   weather: WeatherSnapshot | null;
+  userGender?: string | null;
   onRefresh?: () => void;
 }) {
   const temp = weather ? Math.round((weather.temp_min_c + weather.temp_max_c) / 2) : null;
@@ -151,6 +176,10 @@ function SectionHeader({
     : weather?.condition === 'Rain' ? '비'
     : weather?.condition === 'Snow' ? '눈'
     : weather?.condition ?? '';
+
+  const genderLabel = userGender === 'male' ? "MEN'S"
+                    : userGender === 'female' ? "WOMEN'S"
+                    : null;
 
   return (
     <View
@@ -168,10 +197,24 @@ function SectionHeader({
             TODAY'S PICK
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <Text style={{ fontSize: 26, fontWeight: '900', color: '#1A1A1A', letterSpacing: -0.8 }}>
             Shop Today
           </Text>
+          {genderLabel && (
+            <View
+              style={{
+                backgroundColor: '#1B6B4A',
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 10,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>
+                {genderLabel}
+              </Text>
+            </View>
+          )}
           {temp !== null && (
             <View
               style={{

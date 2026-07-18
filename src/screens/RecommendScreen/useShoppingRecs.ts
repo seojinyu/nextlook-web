@@ -31,6 +31,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [userGender, setUserGender] = useState<string | null>(null);
 
   const lastKeyRef = useRef<string>('');
 
@@ -48,6 +49,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
           .eq('id', userData.user.id)
           .maybeSingle();
         gender = profile?.gender ?? undefined;
+        setUserGender(gender ?? null);
       }
 
       const season = getWeatherSeason(weather);
@@ -93,6 +95,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     loading,
     error,
     products: result?.products ?? [],
+    userGender,  // 'male' | 'female' | 'other' | null
     refresh,
   };
 }
