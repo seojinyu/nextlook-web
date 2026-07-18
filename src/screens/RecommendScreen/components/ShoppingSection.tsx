@@ -127,13 +127,6 @@ export default function ShoppingSection({ loading, error, products, weather, onR
         ))}
       </ScrollView>
 
-      {/* 어필리에이트 필수 명시 */}
-      <View style={{ paddingHorizontal: H_PAD, marginTop: 12 }}>
-        <Text style={{ fontSize: 10, color: '#A8A4A0', lineHeight: 14 }}>
-          ※ 상품 링크로 구매 시 일정 수수료를 제공받을 수 있습니다.
-          가격·재고 정보는 각 쇼핑몰에서 확인해 주세요.
-        </Text>
-      </View>
     </View>
   );
 }
