@@ -156,9 +156,10 @@ Deno.serve(async (req) => {
       }
     }
     products = filterByGender(products, body.gender);
+    products = filterBySeason(products, body);
     products = seededShuffle(products, seed);
     const finalProducts = products.slice(0, 9);
-    console.log('[shopping-recs] total products (after gender filter):', finalProducts.length);
+    console.log('[shopping-recs] total products (after all filters):', finalProducts.length);
 
     if (finalProducts.length === 0) {
       return json({ error: '상품을 찾지 못했어요' }, 502);
@@ -218,6 +219,7 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   let clothingPool: string[];
 
   if (body.season === 'summer' || body.temp_avg >= 25) {
+    // 여름 pool - 겨울 아이템(니트·가디건) 완전 제거
     clothingPool = [
       `${prefix}반팔티`,
       `${prefix}반팔셔츠`,
@@ -226,11 +228,12 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
       `${prefix}린넨팬츠`,
       `${prefix}민소매`,
       isFemale ? '여성 원피스' : `${prefix}반팔 셔츠`,
-      `${prefix}썸머 니트`,
-      `${prefix}오버핏 티셔츠`,
+      `${prefix}오버핏 반팔`,
       `${prefix}크롭 티셔츠`,
-      `${prefix}베이직 티셔츠`,
+      `${prefix}베이직 반팔티`,
       `${prefix}폴로셔츠`,
+      `${prefix}쿨링 반팔`,
+      `${prefix}썸머 반팔`,
     ];
   } else if (body.season === 'winter' || body.temp_avg < 10) {
     clothingPool = [
@@ -350,6 +353,66 @@ function filterByGender(products: Product[], gender?: string): Product[] {
   });
 }
 
+/**
+ * 계절/온도에 맞지 않는 상품 필터링.
+ * 여름에 기모/후디/패딩 뜨거나 겨울에 반팔/린넨 뜨는 것 방지.
+ */
+function filterBySeason(products: Product[], body: RequestBody): Product[] {
+  const tempAvg = body.temp_avg;
+  const isSummer = body.season === 'summer' || tempAvg >= 22;
+  const isVerySummer = tempAvg >= 27;
+  const isWinter = body.season === 'winter' || tempAvg < 12;
+  const isVeryWinter = tempAvg < 5;
+
+  const excludes: string[] = [];
+
+  if (isSummer) {
+    // 여름에 절대 안 되는 것들
+    excludes.push(
+      '기모', '후디', '후드티', '후드집업',
+      '패딩', '롱패딩', '숏패딩', '다운',
+      '롱코트', '울코트', '트렌치코트', '더플코트',
+      '터틀넥', '두꺼운', '헤비 니트',
+      '방한', '털', '무톤', '퍼',
+      '캐시미어', '울 스웨터', '기모팬츠', '기모 팬츠',
+      '겨울', 'winter', '스노우',
+    );
+    if (isVerySummer) {
+      // 27도+ 진짜 더움: 긴팔·니트·자켓도 제외
+      excludes.push(
+        '긴팔', '긴 팔', '롱슬리브', 'long sleeve',
+        '가디건', '자켓', '재킷', '블레이저',
+        '니트', '스웨터', '카디건',
+        '집업',
+      );
+    }
+  }
+
+  if (isWinter) {
+    // 겨울에 절대 안 되는 것들
+    excludes.push(
+      '반팔', '민소매', '나시', '탱크탑', '슬리브리스',
+      '반바지', '숏팬츠', '핫팬츠', '쇼츠',
+      '린넨', '쿨링', '아이스', '냉감',
+      '샌들', '슬리퍼', '쪼리', '플립플롭',
+      '여름', 'summer', '썸머',
+    );
+    if (isVeryWinter) {
+      excludes.push('얇은', '얇은 니트');
+    }
+  }
+
+  if (excludes.length === 0) return products;
+
+  return products.filter((p) => {
+    const text = `${p.title} ${p.category || ''}`.toLowerCase();
+    for (const kw of excludes) {
+      if (text.includes(kw.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+
 function hashSeed(s: string): number {
   let hash = 0;
   for (let i = 0; i < s.length; i++) {
@@ -399,8 +462,8 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
     const items = (data.items || []) as any[];
 
     const shuffled = seededShuffle(items, seed);
-    // 3개 대신 5개 반환 (필터 후 손실 대비)
-    return shuffled.slice(0, 5).map((item): Product => {
+    // 계절/성별 필터로 손실 대비하여 8개 반환
+    return shuffled.slice(0, 8).map((item): Product => {
       const productUrl = buildAffiliateLink(item);
       return {
         id: String(item.productId ?? item.link),
