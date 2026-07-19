@@ -1,11 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
 /**
- * Shopping Recommendations Edge Function v4.
+ * Shopping Recommendations Edge Function v5.
  *
- * - target_date로 날짜별 다른 상품
- * - 성별 엄격 필터링
- * - 스니커즈는 인기 브랜드 다양하게 랜덤
- * - 트렌디 브랜드 modifier
+ * - 신발 카테고리 다양화 (계절별 스니커즈/슬리퍼/쪼리/샌들/부츠/로퍼 등)
+ * - 성별 필터 강화 (유니섹스 허용 + 반대 성별 키워드 확장)
+ * - 날씨 특수 상황 반영 (비/눈)
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.103.0';
 
@@ -30,73 +29,67 @@ interface RequestBody {
   refresh_seed?: number;
 }
 
-// 인기 스니커즈 (다양한 브랜드 · 다양한 모델)
-const SNEAKER_MODELS = [
-  // 나이키
-  '나이키 에어포스',
-  '나이키 덩크 로우',
-  '나이키 조던1',
-  '나이키 에어맥스',
-  '나이키 코르테즈',
-  '나이키 페가수스',
-  // 아디다스
-  '아디다스 삼바',
-  '아디다스 가젤',
-  '아디다스 스탠스미스',
-  '아디다스 슈퍼스타',
-  '아디다스 캠퍼스',
-  '아디다스 오존위브',
-  // 뉴발란스
-  '뉴발란스 530',
-  '뉴발란스 574',
-  '뉴발란스 992',
-  '뉴발란스 993',
-  '뉴발란스 2002R',
-  // 컨버스
-  '컨버스 척테일러',
-  '컨버스 원스타',
-  '컨버스 잭퍼셀',
-  // 반스
-  '반스 올드스쿨',
-  '반스 어센틱',
-  '반스 슬립온',
-  '반스 에라',
-  // 푸마
-  '푸마 스웨이드',
-  '푸마 팜므',
-  '푸마 클라이드',
-  // 온러닝 (프리미엄)
-  '온러닝 클라우드',
-  '온러닝 스니커즈',
-  // 아식스 (트렌디 리바이벌)
-  '아식스 젤카야노',
-  '아식스 젤라이트3',
-  '아식스 젤퀀텀',
-  // 호카 (요즘 인기)
-  '호카 본디',
-  '호카 클리프톤',
-  '호카 스니커즈',
-  // 리복 (레트로 트렌드)
-  '리복 클럽씨',
-  '리복 클래식',
-  // 살로몬 (테크 스니커즈)
-  '살로몬 XT-6',
-  '살로몬 스니커즈',
-  // MLB
-  'MLB 청키러너',
-  'MLB 스니커즈',
+// 여름/더운 날 신발 pool
+const SUMMER_SHOES = [
+  // 스니커즈 (여름에도 인기)
+  '뉴발란스 530', '뉴발란스 574', '나이키 에어포스', '아디다스 삼바',
+  '컨버스 척테일러', '반스 올드스쿨', '반스 슬립온', 'MLB 청키러너',
+  // 슬리퍼
+  '슬리퍼', '나이키 슬리퍼', '아디다스 슬리퍼', '크록스 슬리퍼',
+  '어그 슬리퍼', '버켄스탁 슬리퍼', '뉴발란스 슬리퍼',
+  // 쪼리 (플립플롭)
+  '쪼리', '하바이아나스 쪼리', '나이키 쪼리', '아디다스 쪼리',
+  '오소프레쉬 쪼리',
+  // 샌들
+  '샌들', '버켄스탁 아리조나', '버켄스탁 보스턴', '테바 샌들',
+  '스포츠 샌들', '킨 샌들',
 ];
 
-// 트렌디 브랜드 modifier
+// 겨울/추운 날 신발 pool
+const WINTER_SHOES = [
+  // 스니커즈 (겨울에도)
+  '뉴발란스 992', '뉴발란스 993', '나이키 에어맥스', '온러닝 클라우드',
+  // 부츠
+  '첼시부츠', '워커', '앵클부츠', '롱부츠',
+  '팀버랜드 워커', '닥터마틴 1460', '닥터마틴 첼시부츠',
+  // 방한부츠
+  'ugg 부츠', '어그 클래식', '방한부츠', '스노우부츠',
+  '무톤부츠', '레더부츠',
+];
+
+// 봄/가을 신발 pool
+const SPRING_FALL_SHOES = [
+  // 스니커즈 다양
+  '뉴발란스 530', '뉴발란스 574', '뉴발란스 993', '나이키 에어포스',
+  '나이키 덩크 로우', '나이키 조던1', '나이키 코르테즈',
+  '아디다스 삼바', '아디다스 가젤', '아디다스 스탠스미스', '아디다스 슈퍼스타',
+  '컨버스 척테일러', '컨버스 원스타',
+  '반스 올드스쿨', '반스 어센틱',
+  '푸마 스웨이드', '푸마 클라이드',
+  '온러닝 클라우드', '아식스 젤라이트3',
+  '호카 클리프톤', '살로몬 XT-6',
+  // 로퍼
+  '로퍼', '페니로퍼', '로우퍼',
+  // 얇은 부츠
+  '첼시부츠', '앵클부츠', '워커',
+];
+
+// 비 오는 날 신발
+const RAINY_SHOES = [
+  '레인부츠', '레인샌들', '방수 스니커즈', '고무 부츠',
+  '어그 방수부츠', '크록스 슬리퍼',
+];
+
+// 눈 오는 날 신발
+const SNOWY_SHOES = [
+  '방한부츠', '스노우부츠', '어그 클래식', '방수 부츠',
+  '무톤부츠', '방한 워커',
+];
+
+// 트렌디 브랜드 (옷 modifier용)
 const TRENDY_BRANDS = [
-  '유니클로',
-  '무신사스탠다드',
-  '커버낫',
-  '스파오',
-  '지오다노',
-  '탑텐',
-  '에잇세컨즈',
-  '무신사',
+  '유니클로', '무신사스탠다드', '커버낫', '스파오',
+  '지오다노', '탑텐', '에잇세컨즈', '무신사',
 ];
 
 const CORS_HEADERS = {
@@ -126,7 +119,6 @@ Deno.serve(async (req) => {
     const isToday = targetDate === today;
     const isRefresh = typeof body.refresh_seed === 'number' && body.refresh_seed > 0;
 
-    // 캐시 확인 (오늘 · refresh 아닐 때만)
     if (isToday && !isRefresh) {
       const { data: existing } = await supabase
         .from('daily_shopping')
@@ -137,13 +129,13 @@ Deno.serve(async (req) => {
 
       if (existing && Array.isArray(existing.products) && existing.products.length > 0
           && existing.weather_condition === body.weather_condition
-          && existing.temp_avg === body.temp_avg) {
+          && existing.temp_avg === body.temp_avg
+          && existing.gender === (body.gender ?? null)) {
         console.log('[shopping-recs] cache hit');
         return json({ cached: true, ...existing });
       }
     }
 
-    // 시드: target_date + userId + weather + refresh_seed
     const seed = `${targetDate}-${userId}-${body.weather_condition}_${body.temp_avg}-${body.refresh_seed ?? 0}`;
 
     const categories = getCategoriesForWeather(body, seed);
@@ -166,7 +158,7 @@ Deno.serve(async (req) => {
     products = filterByGender(products, body.gender);
     products = seededShuffle(products, seed);
     const finalProducts = products.slice(0, 9);
-    console.log('[shopping-recs] total products:', finalProducts.length);
+    console.log('[shopping-recs] total products (after gender filter):', finalProducts.length);
 
     if (finalProducts.length === 0) {
       return json({ error: '상품을 찾지 못했어요' }, 502);
@@ -213,7 +205,7 @@ function json(payload: unknown, status = 200) {
 
 /**
  * 성별·날씨 → 카테고리 결정.
- * 신발은 SNEAKER_MODELS(41개 브랜드/모델)에서 시드 랜덤 선택.
+ * 신발은 계절/날씨별 다양한 종류 (스니커즈/슬리퍼/쪼리/부츠 등)
  */
 function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   const isFemale = body.gender === 'female';
@@ -256,7 +248,6 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
       `${prefix}가디건 니트`,
     ];
   } else {
-    // spring_fall
     clothingPool = [
       `${prefix}가디건`,
       `${prefix}오버핏 가디건`,
@@ -278,13 +269,11 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   if (isRainy) clothingPool.push(`${prefix}방수자켓`);
   if (isSnowy) clothingPool.push(`${prefix}털장갑`, `${prefix}비니`);
 
-  // 옷 3개 선택
   const shuffledClothing = seededShuffle(clothingPool, seed);
   const selectedClothing = shuffledClothing.slice(0, 3);
 
-  // 옷 modifier: 트렌디 브랜드 or 인기/베스트/신상 (랜덤)
   const withMods = selectedClothing.map((cat, i) => {
-    const useBrand = (hashSeed(seed + `-brand-${i}`) % 2) === 0; // 50% 브랜드
+    const useBrand = (hashSeed(seed + `-brand-${i}`) % 2) === 0;
     if (useBrand) {
       const brandIdx = hashSeed(seed + `-brand-sel-${i}`) % TRENDY_BRANDS.length;
       return `${TRENDY_BRANDS[brandIdx]} ${cat}`;
@@ -294,33 +283,68 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
     return `${cat} ${modifiers[modIdx]}`;
   });
 
-  // 신발: SNEAKER_MODELS 41개에서 시드 랜덤 선택 (다양한 브랜드)
-  const shoeIdx = hashSeed(seed + '-shoe') % SNEAKER_MODELS.length;
-  const sneakerModel = SNEAKER_MODELS[shoeIdx];
-  const sneakerQuery = prefix ? `${prefix.trim()} ${sneakerModel}` : sneakerModel;
+  // 신발 pool 선택 (날씨/계절별)
+  let shoePool: string[];
+  if (isSnowy) {
+    shoePool = SNOWY_SHOES;
+  } else if (isRainy) {
+    shoePool = RAINY_SHOES;
+  } else if (body.season === 'summer' || body.temp_avg >= 25) {
+    shoePool = SUMMER_SHOES;
+  } else if (body.season === 'winter' || body.temp_avg < 10) {
+    shoePool = WINTER_SHOES;
+  } else {
+    shoePool = SPRING_FALL_SHOES;
+  }
+
+  const shoeIdx = hashSeed(seed + '-shoe') % shoePool.length;
+  const shoe = shoePool[shoeIdx];
+  const sneakerQuery = prefix ? `${prefix.trim()} ${shoe}` : shoe;
 
   return [...withMods, sneakerQuery];
 }
 
+/**
+ * 성별 필터링 강화 v2.
+ * - 반대 성별 명시 키워드 확장 (레이디스, 우먼, 옴므, 신사 등)
+ * - 유니섹스/남녀공용은 항상 통과
+ * - title + category + brand 모두 검사
+ */
 function filterByGender(products: Product[], gender?: string): Product[] {
   if (!gender || gender === 'other' || gender === 'prefer_not_to_say') {
     return products;
   }
+
   const oppositeKeywords = gender === 'female'
-    ? ['남성', '남자', '남아', '보이즈', "men's", 'mens', 'male']
-    : ['여성', '여자', '여아', '걸즈', "women's", 'womens', 'female'];
-  const oppositeCategories = gender === 'female'
-    ? ['남성의류', '남성패션', '남자패션']
-    : ['여성의류', '여성패션', '여자패션'];
+    ? [
+        // 남성 명시 키워드
+        '남성', '남자', '남아', '보이즈', '신사', '옴므', '남성용',
+        "men's", 'mens', ' men ', ' men,', 'men ', ' man ',
+        'male', '남성 ',
+      ]
+    : [
+        // 여성 명시 키워드
+        '여성', '여자', '여아', '걸즈', '레이디', '레이디스', '우먼', '여성용',
+        "women's", 'womens', ' women', 'women ', 'woman',
+        'female', '여성 ', '레이디 ',
+      ];
 
   return products.filter((p) => {
-    const titleLower = p.title.toLowerCase();
-    const categoryLower = (p.category || '').toLowerCase();
-    for (const kw of oppositeKeywords) {
-      if (titleLower.includes(kw.toLowerCase())) return false;
+    const combined = `${p.title} ${p.category || ''} ${p.brand || ''}`.toLowerCase();
+
+    // 유니섹스는 항상 통과 (남녀공용 · 유니섹스 · unisex)
+    if (
+      combined.includes('남녀공용') ||
+      combined.includes('유니섹스') ||
+      combined.includes('unisex') ||
+      combined.includes('공용')
+    ) {
+      return true;
     }
-    for (const cat of oppositeCategories) {
-      if (categoryLower.includes(cat.toLowerCase())) return false;
+
+    // 반대 성별 키워드 하나라도 있으면 제외
+    for (const kw of oppositeKeywords) {
+      if (combined.includes(kw.toLowerCase())) return false;
     }
     return true;
   });
@@ -357,7 +381,8 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
   const start = ((hashSeed(seed) % 4) * 10) + 1;
   const sort = (hashSeed(seed + '-sort') % 2 === 0) ? 'sim' : 'date';
 
-  const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=20&start=${start}&sort=${sort}`;
+  // display를 30으로 늘려서 필터링 후 남을 확률 UP
+  const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=30&start=${start}&sort=${sort}`;
 
   try {
     const res = await fetch(url, {
@@ -374,7 +399,8 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
     const items = (data.items || []) as any[];
 
     const shuffled = seededShuffle(items, seed);
-    return shuffled.slice(0, 3).map((item): Product => {
+    // 3개 대신 5개 반환 (필터 후 손실 대비)
+    return shuffled.slice(0, 5).map((item): Product => {
       const productUrl = buildAffiliateLink(item);
       return {
         id: String(item.productId ?? item.link),
