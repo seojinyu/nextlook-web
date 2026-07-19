@@ -35,16 +35,26 @@ export function useRecommendData() {
     if (cachedCoords) return cachedCoords;
     const perm = await Location.requestForegroundPermissionsAsync();
     if (!perm.granted) throw new Error('위치 권한이 필요합니다.');
-    const last = await Location.getLastKnownPositionAsync();
-    if (last) {
-      setCachedCoords(last.coords);
-      return last.coords;
+
+    // 정확도 개선: Balanced (100m) 우선 시도 → 실패 시 마지막 위치
+    // 이전엔 last known + Low(1-5km) → 오래된/부정확한 위치로 다른 지역 날씨 조회
+    try {
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,  // Low → Balanced (100m 정확도)
+      });
+      console.log(`[location] GPS: ${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
+      setCachedCoords(loc.coords);
+      return loc.coords;
+    } catch (e) {
+      console.warn('[location] GPS 실패, last known 시도:', e);
+      const last = await Location.getLastKnownPositionAsync();
+      if (last) {
+        console.log(`[location] last known: ${last.coords.latitude.toFixed(4)}, ${last.coords.longitude.toFixed(4)}`);
+        setCachedCoords(last.coords);
+        return last.coords;
+      }
+      throw new Error('위치를 가져올 수 없습니다.');
     }
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Low,
-    });
-    setCachedCoords(loc.coords);
-    return loc.coords;
   }, []);
 
   const getCachedSignedUrl = useCallback(async (path: string) => {

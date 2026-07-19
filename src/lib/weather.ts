@@ -43,26 +43,46 @@ async function ensureForecastCache(lat: number, lon: number): Promise<Map<string
   const key = buildCacheKey(lat, lon);
   if (_forecastCache && _forecastCacheKey === key) return _forecastCache;
 
+  // JMA (Japan Meteorological Agency) 모델 사용 - 한국·일본 지역 정확도 최고
+  // 기본 best_match는 GFS(미국 전지구) 위주라 한국 국지 예보 부정확
+  // JMA는 5km 해상도로 동아시아 국지 기상 반영
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code` +
-    `&timezone=auto&forecast_days=16`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Weather API ${res.status}`);
-  const json = (await res.json()) as OpenMeteoDailyResponse;
+    `&timezone=Asia/Seoul&forecast_days=16&models=jma_seamless`;
 
+  console.log(`[weather] fetching for lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    // JMA 실패 시 기본 모델로 fallback
+    console.warn('[weather] JMA model failed, falling back to best_match');
+    const fallbackUrl =
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,weather_code` +
+      `&timezone=Asia/Seoul&forecast_days=16`;
+    const fallbackRes = await fetch(fallbackUrl);
+    if (!fallbackRes.ok) throw new Error(`Weather API ${fallbackRes.status}`);
+    const json = (await fallbackRes.json()) as OpenMeteoDailyResponse;
+    return buildMapFromResponse(json, key);
+  }
+  const json = (await res.json()) as OpenMeteoDailyResponse;
+  return buildMapFromResponse(json, key);
+}
+
+function buildMapFromResponse(json: OpenMeteoDailyResponse, key: string): Map<string, WeatherSnapshot> {
   const map = new Map<string, WeatherSnapshot>();
   for (let i = 0; i < json.daily.time.length; i++) {
     const code = json.daily.weather_code[i];
-    map.set(json.daily.time[i], {
+    const snapshot = {
       temp_min_c: Math.round(json.daily.temperature_2m_min[i]),
       temp_max_c: Math.round(json.daily.temperature_2m_max[i]),
       condition: WMO_MAP[code] ?? 'Clouds',
       precipitation_mm: Math.round(json.daily.precipitation_sum[i] * 10) / 10,
       wind_mps: Math.round((json.daily.wind_speed_10m_max[i] / 3.6) * 10) / 10,
-    });
+    };
+    map.set(json.daily.time[i], snapshot);
+    console.log(`[weather] ${json.daily.time[i]}: 최고 ${snapshot.temp_max_c}° / 최저 ${snapshot.temp_min_c}° / ${snapshot.condition}`);
   }
-
   _forecastCache = map;
   _forecastCacheKey = key;
   return map;
@@ -100,12 +120,27 @@ export async function fetchCurrentWeather(
   lat: number,
   lon: number
 ): Promise<{ temp_c: number; condition: string }> {
+  // JMA 모델로 한국 지역 정확도 UP
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&current=temperature_2m,weather_code&timezone=auto`;
+    `&current=temperature_2m,weather_code&timezone=Asia/Seoul&models=jma_seamless`;
+  console.log(`[weather] current fetch lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`);
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Weather API ${res.status}`);
+  if (!res.ok) {
+    // fallback to default model
+    const fallbackUrl =
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,weather_code&timezone=Asia/Seoul`;
+    const fallbackRes = await fetch(fallbackUrl);
+    if (!fallbackRes.ok) throw new Error(`Weather API ${fallbackRes.status}`);
+    const json = (await fallbackRes.json()) as OpenMeteoCurrentResponse;
+    return {
+      temp_c: Math.round(json.current.temperature_2m),
+      condition: WMO_MAP[json.current.weather_code] ?? 'Clouds',
+    };
+  }
   const json = (await res.json()) as OpenMeteoCurrentResponse;
+  console.log(`[weather] current: ${Math.round(json.current.temperature_2m)}°C`);
   return {
     temp_c: Math.round(json.current.temperature_2m),
     condition: WMO_MAP[json.current.weather_code] ?? 'Clouds',
