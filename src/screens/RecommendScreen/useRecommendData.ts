@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { supabase, getSignedUrl } from '../../lib/supabase';
-import { prefetchForecast, getWeatherFromCache } from '../../lib/weather';
+import { prefetchForecast, getWeatherFromCache, fetchCurrentWeather } from '../../lib/weather';
 import { generateRecommendations } from '../../lib/recommend';
 import { logMemory } from '../../lib/memoryMonitor';
 import type { Clothing, OutfitSuggestion, WeatherSnapshot } from '../../lib/types';
@@ -24,6 +24,7 @@ import {
 export function useRecommendData() {
   const [loading, setLoading] = useState(false);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [currentTemp, setCurrentTemp] = useState<number | null>(null);
   const [date, setDate] = useState<string>('');
   const [suggestions, setSuggestions] = useState<OutfitSuggestion[]>([]);
   const [clothesMap, setClothesMap] = useState<
@@ -145,14 +146,21 @@ export function useRecommendData() {
       const fourDaysAgo = new Date();
       fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
 
-      const [, clothesRes, recentRes] = await Promise.all([
+      const [, clothesRes, recentRes, currentWeather] = await Promise.all([
         prefetchForecast(coords.latitude, coords.longitude),
         supabase.from('clothes').select('*').eq('user_id', userId),
         supabase.from('wear_log')
           .select('clothing_ids')
           .eq('user_id', userId)
           .gte('worn_on', fourDaysAgo.toISOString().slice(0, 10)),
+        // 현재 실시간 온도 fetch (오늘 카드에 크게 표시)
+        fetchCurrentWeather(coords.latitude, coords.longitude).catch(() => null),
       ]);
+
+      if (currentWeather) {
+        setCurrentTemp(currentWeather.temp_c);
+        console.log('[useRecommendData] 현재 온도:', currentWeather.temp_c, '°C');
+      }
 
       const clothes = (clothesRes.data ?? []) as Clothing[];
       setCachedClothes(clothes);
@@ -171,7 +179,7 @@ export function useRecommendData() {
       setCachedClothesUrlMap(clothesMeta);
       setDataReady(true);
 
-      generateForDay(1);
+      generateForDay(0);
     } catch (e: any) {
       Alert.alert('추천 실패', e.message ?? String(e));
     } finally {
@@ -200,6 +208,7 @@ export function useRecommendData() {
   return {
     loading,
     weather,
+    currentTemp,  // 실시간 현재 온도 (오늘 카드용)
     date,
     suggestions,
     clothesMap,

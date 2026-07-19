@@ -7,9 +7,11 @@ import type { WeatherSnapshot } from '../../../lib/types';
 
 interface Props {
   weather: WeatherSnapshot;
+  currentTemp?: number | null;  // 지금 실시간 온도 (오늘 선택 시)
+  isToday?: boolean;
 }
 
-export default function WeatherCard({ weather }: Props) {
+export default function WeatherCard({ weather, currentTemp, isToday }: Props) {
   const iconName = getWeatherIconName(weather.condition);
   const conditionKr = CONDITION_KR[weather.condition] ?? weather.condition;
 
@@ -29,7 +31,7 @@ export default function WeatherCard({ weather }: Props) {
         <Text
           style={{ fontSize: 9, fontWeight: '800', color: BOTTEGA, letterSpacing: 1.8 }}
         >
-          TODAY'S WEATHER
+          {isToday ? "TODAY'S WEATHER" : "FORECAST"}
         </Text>
       </View>
 
@@ -53,29 +55,55 @@ export default function WeatherCard({ weather }: Props) {
 
         {/* 오른쪽: 온도 + 상세 */}
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-            <Text
-              style={{
-                fontSize: 30,
-                fontWeight: '900',
-                color: '#fff',
-                letterSpacing: -1.2,
-                lineHeight: 32,
-              }}
-            >
-              {weather.temp_max_c}°
-            </Text>
-            <Text
-              style={{
-                fontSize: 15,
-                fontWeight: '600',
-                color: 'rgba(255,255,255,0.4)',
-                letterSpacing: -0.3,
-              }}
-            >
-              / {weather.temp_min_c}°
-            </Text>
-          </View>
+          {/* 오늘이고 현재 온도 있으면 → 큰 현재 온도 강조 */}
+          {isToday && currentTemp !== null && currentTemp !== undefined ? (
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+              <Text
+                style={{
+                  fontSize: 34,
+                  fontWeight: '900',
+                  color: '#fff',
+                  letterSpacing: -1.5,
+                  lineHeight: 36,
+                }}
+              >
+                {currentTemp}°
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>
+                  NOW
+                </Text>
+                <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>·</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.55)' }}>
+                  {weather.temp_max_c}°/{weather.temp_min_c}°
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <Text
+                style={{
+                  fontSize: 30,
+                  fontWeight: '900',
+                  color: '#fff',
+                  letterSpacing: -1.2,
+                  lineHeight: 32,
+                }}
+              >
+                {weather.temp_max_c}°
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: 'rgba(255,255,255,0.4)',
+                  letterSpacing: -0.3,
+                }}
+              >
+                / {weather.temp_min_c}°
+              </Text>
+            </View>
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
             <Text
               style={{

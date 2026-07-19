@@ -33,7 +33,7 @@ export default function RecommendScreen() {
   const insets = useSafeAreaInsets();
   const forecastDates = getForecastDates();
 
-  const [selectedDays, setSelectedDays] = useState(1);
+  const [selectedDays, setSelectedDays] = useState(0);
   const [viewMode, setViewMode] = useState<'grid' | 'mannequin'>('grid');
 
   const [confirming, setConfirming] = useState<number | null>(null);
@@ -42,7 +42,7 @@ export default function RecommendScreen() {
   const [noteText, setNoteText] = useState('');
 
   const {
-    loading, weather, date, suggestions, clothesMap,
+    loading, weather, currentTemp, date, suggestions, clothesMap,
     selectDate, refresh, getCachedClothes,
   } = useRecommendData();
 
@@ -100,7 +100,13 @@ export default function RecommendScreen() {
           disabled={loading}
           onSelect={handleSelectDate}
         />
-        {weather && <WeatherCard weather={weather} />}
+        {weather && (
+          <WeatherCard
+            weather={weather}
+            currentTemp={selectedDays === 0 ? currentTemp : null}
+            isToday={selectedDays === 0}
+          />
+        )}
       </View>
 
       {/* 오늘의 쇼핑 추천 (성별·날씨 맞춤 실제 상품) */}

@@ -112,22 +112,34 @@ export async function fetchCurrentWeather(
   };
 }
 
-/** Returns forecast dates (tomorrow through +14 days) */
+/** Returns forecast dates (today through +14 days) */
 export function getForecastDates(): { date: string; daysFromToday: number; label: string; day: number; weekday: string }[] {
   const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
   const results: { date: string; daysFromToday: number; label: string; day: number; weekday: string }[] = [];
-  for (let d = 1; d <= 14; d++) {
+  for (let d = 0; d <= 14; d++) {
     const dt = new Date();
     dt.setDate(dt.getDate() + d);
     const ymd = dt.toISOString().slice(0, 10);
     const day = dt.getDate();
     const w = weekdays[dt.getDay()];
+    let label: string;
+    let weekday: string;
+    if (d === 0) {
+      label = '오늘';
+      weekday = '오늘';
+    } else if (d === 1) {
+      label = '내일';
+      weekday = '내일';
+    } else {
+      label = `${dt.getMonth() + 1}/${day}`;
+      weekday = w;
+    }
     results.push({
       date: ymd,
       daysFromToday: d,
-      label: d === 1 ? '내일' : `${dt.getMonth() + 1}/${day}`,
+      label,
       day,
-      weekday: d === 1 ? '내일' : w,
+      weekday,
     });
   }
   return results;
