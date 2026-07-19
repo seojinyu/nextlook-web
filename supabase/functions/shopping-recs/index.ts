@@ -155,11 +155,14 @@ Deno.serve(async (req) => {
         }
       }
     }
+    // 쿠팡 상품만 필터링 (파트너 커미션 최적화)
+    products = products.filter((p) => p.mall === '쿠팡');
     products = filterByGender(products, body.gender);
     products = filterBySeason(products, body);
     products = seededShuffle(products, seed);
-    const finalProducts = products.slice(0, 9);
-    console.log('[shopping-recs] total products (after all filters):', finalProducts.length);
+    // 12개로 확대
+    const finalProducts = products.slice(0, 12);
+    console.log('[shopping-recs] total products (Coupang only + filtered):', finalProducts.length);
 
     if (finalProducts.length === 0) {
       return json({ error: '상품을 찾지 못했어요' }, 502);
@@ -273,17 +276,26 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
   if (isSnowy) clothingPool.push(`${prefix}털장갑`, `${prefix}비니`);
 
   const shuffledClothing = seededShuffle(clothingPool, seed);
-  const selectedClothing = shuffledClothing.slice(0, 3);
+  // 3 → 5개로 확대 (쿠팡 필터 후에도 충분히 남기 위해)
+  const selectedClothing = shuffledClothing.slice(0, 5);
 
+  // 쿠팡 상품 확률 UP + 인기 순위 우선
   const withMods = selectedClothing.map((cat, i) => {
-    const useBrand = (hashSeed(seed + `-brand-${i}`) % 2) === 0;
-    if (useBrand) {
-      const brandIdx = hashSeed(seed + `-brand-sel-${i}`) % TRENDY_BRANDS.length;
-      return `${TRENDY_BRANDS[brandIdx]} ${cat}`;
+    const modType = hashSeed(seed + `-modtype-${i}`) % 4;
+    // 0: '쿠팡 베스트 카테고리' - 쿠팡 인기 상품
+    // 1: '쿠팡 랭킹 카테고리' - 쿠팡 판매 순위
+    // 2: '쿠팡 브랜드 카테고리' - 쿠팡 트렌디 브랜드
+    // 3: '카테고리 판매순위' - 일반 인기
+    if (modType === 0) {
+      return `쿠팡 베스트 ${cat}`;
+    } else if (modType === 1) {
+      return `쿠팡 랭킹 ${cat}`;
+    } else if (modType === 2) {
+      const brandIdx = hashSeed(seed + `-brand-${i}`) % TRENDY_BRANDS.length;
+      return `쿠팡 ${TRENDY_BRANDS[brandIdx]} ${cat}`;
+    } else {
+      return `쿠팡 ${cat} 판매순위`;
     }
-    const modifiers = ['인기', '베스트', '신상'];
-    const modIdx = hashSeed(seed + `-trend-${i}`) % modifiers.length;
-    return `${cat} ${modifiers[modIdx]}`;
   });
 
   // 신발 pool 선택 (날씨/계절별)
@@ -302,7 +314,16 @@ function getCategoriesForWeather(body: RequestBody, seed: string): string[] {
 
   const shoeIdx = hashSeed(seed + '-shoe') % shoePool.length;
   const shoe = shoePool[shoeIdx];
-  const sneakerQuery = prefix ? `${prefix.trim()} ${shoe}` : shoe;
+  // 신발도 쿠팡 상품 우선 (베스트/인기 modifier)
+  const shoeModType = hashSeed(seed + '-shoe-mod') % 3;
+  let sneakerQuery: string;
+  if (shoeModType === 0) {
+    sneakerQuery = prefix ? `쿠팡 ${prefix.trim()} ${shoe}` : `쿠팡 ${shoe}`;
+  } else if (shoeModType === 1) {
+    sneakerQuery = prefix ? `쿠팡 베스트 ${prefix.trim()} ${shoe}` : `쿠팡 베스트 ${shoe}`;
+  } else {
+    sneakerQuery = prefix ? `쿠팡 인기 ${prefix.trim()} ${shoe}` : `쿠팡 인기 ${shoe}`;
+  }
 
   return [...withMods, sneakerQuery];
 }
@@ -441,11 +462,10 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
     return [];
   }
 
-  const start = ((hashSeed(seed) % 4) * 10) + 1;
-  const sort = (hashSeed(seed + '-sort') % 2 === 0) ? 'sim' : 'date';
-
-  // display를 30으로 늘려서 필터링 후 남을 확률 UP
-  const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=30&start=${start}&sort=${sort}`;
+  // 인기·판매 순위 반영을 위해 sim(유사도) 정렬 우선
+  // display 50 (최대) → 쿠팡 필터 후에도 충분히 확보
+  const start = ((hashSeed(seed) % 3) * 20) + 1;
+  const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(query)}&display=50&start=${start}&sort=sim`;
 
   try {
     const res = await fetch(url, {
@@ -461,9 +481,14 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
     const data = await res.json();
     const items = (data.items || []) as any[];
 
-    const shuffled = seededShuffle(items, seed);
-    // 계절/성별 필터로 손실 대비하여 8개 반환
-    return shuffled.slice(0, 8).map((item): Product => {
+    // 쿠팡 상품 우선 정렬 → 쿠팡 없으면 그 다음
+    const coupangItems = items.filter((it: any) => it.mallName === '쿠팡');
+    const otherItems = items.filter((it: any) => it.mallName !== '쿠팡');
+    const sorted = [...coupangItems, ...otherItems];
+
+    const shuffled = seededShuffle(sorted, seed);
+    // 쿠팡 필터 손실 대비 15개 반환
+    return shuffled.slice(0, 15).map((item): Product => {
       const productUrl = buildAffiliateLink(item);
       return {
         id: String(item.productId ?? item.link),
