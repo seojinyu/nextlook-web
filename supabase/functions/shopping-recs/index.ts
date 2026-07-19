@@ -483,15 +483,33 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
   }
 }
 
+/**
+ * 어필리에이트 링크 생성.
+ *
+ * 쿠팡 파트너 링크 규격:
+ *   https://link.coupang.com/re/AFFSDP?lptag=<파트너ID>&pageKey=<상품ID>
+ *
+ * pageKey는 반드시 숫자 상품 ID여야 함 (URL 넣으면 오류).
+ * Naver가 반환한 링크가 www.coupang.com/vp/products/{ID} 형식이면
+ * 정규식으로 ID 추출 후 파트너 링크 생성.
+ *
+ * 그 외 (다른 쇼핑몰 or 쿠팡 ID 추출 실패)는 원본 링크 사용.
+ */
 function buildAffiliateLink(item: any): string {
   const originalUrl = item.link ?? '';
   const mall = item.mallName ?? '';
-  const title = stripHtml(item.title ?? '');
   const coupangPartnerId = Deno.env.get('COUPANG_PARTNER_ID');
 
   if (mall === '쿠팡' && coupangPartnerId) {
-    const searchUrl = `https://www.coupang.com/np/search?q=${encodeURIComponent(title)}`;
-    return `https://link.coupang.com/re/AFFSDP?lptag=${coupangPartnerId}&pageKey=${encodeURIComponent(searchUrl)}&subId=nextlook`;
+    // 쿠팡 URL에서 상품 ID 추출
+    // https://www.coupang.com/vp/products/1234567890?... → "1234567890"
+    const match = originalUrl.match(/coupang\.com\/vp\/products\/(\d+)/);
+    if (match && match[1]) {
+      const productId = match[1];
+      return `https://link.coupang.com/re/AFFSDP?lptag=${coupangPartnerId}&pageKey=${productId}&subId=nextlook`;
+    }
+    // ID 추출 실패 시 원본 링크 사용 (안전 fallback)
+    console.log('[coupang] product ID not found in URL, using original:', originalUrl.substring(0, 80));
   }
 
   return originalUrl;
