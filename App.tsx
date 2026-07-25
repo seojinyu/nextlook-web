@@ -16,6 +16,7 @@ import AddClothingScreen from './src/screens/AddClothingScreen';
 import RecommendScreen from './src/screens/RecommendScreen';
 import OutfitScreen from './src/screens/OutfitScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
+import AdminScreen from './src/screens/AdminScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -165,6 +166,11 @@ export default function App() {
                 headerShadowVisible: false,
                 headerTintColor: '#1A1A1A',
               }}
+            />
+            <Stack.Screen
+              name="Admin"
+              component={AdminScreen}
+              options={{ headerShown: false }}
             />
           </Stack.Navigator>
         )}

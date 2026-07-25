@@ -1,9 +1,13 @@
+import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { confirm } from '../../../lib/confirm';
 import { formatDate } from '../helpers';
 import { BOTTEGA } from '../constants';
+
+const ADMIN_EMAILS = ['seojinyu89@gmail.com'];
 
 interface Props {
   date: string;
@@ -12,6 +16,16 @@ interface Props {
 }
 
 export default function Header({ date, loading, onRefresh }: Props) {
+  const navigation = useNavigation<any>();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const email = (data.user?.email ?? '').toLowerCase();
+      setIsAdmin(ADMIN_EMAILS.includes(email));
+    })();
+  }, []);
   const handleLogout = () => {
     confirm(
       '로그아웃',
@@ -33,6 +47,22 @@ export default function Header({ date, loading, onRefresh }: Props) {
           marginBottom: 20,
         }}
       >
+        {isAdmin && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Admin')}
+            activeOpacity={0.7}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: 'rgba(196,154,60,0.2)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="shield-checkmark" size={16} color="#C49A3C" />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={onRefresh}
           disabled={loading}
