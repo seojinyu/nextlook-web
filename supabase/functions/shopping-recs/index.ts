@@ -244,15 +244,20 @@ Deno.serve(async (req) => {
       ),
     );
 
-    // gap(그룹)별로 쿠팡·성별·계절 필터 후 균등 배분 (그룹 순서 유지)
-    const perGroup = gaps ? Math.max(3, Math.ceil(12 / queries.length)) : 12;
+    // gap(그룹)별로 쿠팡·브랜드·성별·계절 필터 후 균등 배분 (그룹 순서 유지)
+    // 그룹당 최대 8개까지 나열 (코디 완성 아이템 풍성하게)
+    const perGroup = gaps ? Math.max(8, Math.ceil(28 / queries.length)) : 12;
     const seen = new Set<string>();
     let products: Product[] = [];
     for (const items of results) {
-      let filtered = items.filter((p) => p.mall === '쿠팡');
+      const coupang = items.filter((p) => p.mall === '쿠팡');
+      const hasBrand = (p: Product) => !!p.brand && p.brand.trim().length > 0;
+      // 쿠팡 + 브랜드 있는 상품만 (노브랜드 제외)
+      let filtered = coupang.filter(hasBrand);
       filtered = filterByGender(filtered, body.gender);
       filtered = filterBySeason(filtered, body);
       filtered = seededShuffle(filtered, seed);
+
       let taken = 0;
       for (const p of filtered) {
         if (seen.has(p.id)) continue;
@@ -261,8 +266,22 @@ Deno.serve(async (req) => {
         taken++;
         if (gaps && taken >= perGroup) break;
       }
+
+      // 안전장치: 브랜드 상품이 하나도 없어 그룹이 비면 노브랜드로 최소 채움
+      if (gaps && taken === 0) {
+        let fallback = filterByGender(coupang, body.gender);
+        fallback = filterBySeason(fallback, body);
+        fallback = seededShuffle(fallback, seed);
+        for (const p of fallback) {
+          if (seen.has(p.id)) continue;
+          seen.add(p.id);
+          products.push(p);
+          taken++;
+          if (taken >= 4) break;
+        }
+      }
     }
-    const finalProducts = gaps ? products.slice(0, 15) : products.slice(0, 12);
+    const finalProducts = gaps ? products.slice(0, 32) : products.slice(0, 12);
     console.log('[shopping-recs] final products:', finalProducts.length, 'groups:', queries.length);
 
     if (finalProducts.length === 0) {
@@ -588,9 +607,13 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
     const sorted = [...coupangItems, ...otherItems];
 
     const shuffled = seededShuffle(sorted, seed);
-    // 쿠팡 필터 손실 대비 15개 반환
-    return shuffled.slice(0, 15).map((item): Product => {
+    // 쿠팡·브랜드 필터 손실 대비 30개 반환
+    return shuffled.slice(0, 30).map((item): Product => {
       const productUrl = buildAffiliateLink(item);
+      // 브랜드: brand 우선, 없으면 maker(제조사)로 폴백
+      const brand = (item.brand && String(item.brand).trim())
+        || (item.maker && String(item.maker).trim())
+        || undefined;
       return {
         id: String(item.productId ?? item.link),
         title: stripHtml(item.title ?? ''),
@@ -598,7 +621,7 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
         price: parseInt(item.lprice ?? '0', 10),
         mall: item.mallName ?? '기타',
         category: item.category3 ?? item.category2 ?? item.category1 ?? '',
-        brand: item.brand || undefined,
+        brand,
         productUrl,
         originalUrl: item.link ?? '',
       };
