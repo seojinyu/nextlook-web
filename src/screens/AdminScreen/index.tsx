@@ -414,7 +414,7 @@ function DistributionBar<K extends string>({
   labels: Record<K, string>;
   colors: Record<K, string>;
 }) {
-  const total = Object.values(data).reduce((s, n) => s + (n as number), 0);
+  const total = Object.values(data).reduce((s: number, n) => s + (n as number), 0);
   return (
     <View style={{ marginBottom: 16 }}>
       <Text style={{ fontSize: 11, color: '#7A7570', fontWeight: '700', marginBottom: 8, letterSpacing: 1 }}>

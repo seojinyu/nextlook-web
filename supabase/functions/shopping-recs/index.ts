@@ -18,6 +18,13 @@ interface Product {
   brand?: string;
   productUrl: string;
   originalUrl: string;
+  gapKey?: string;      // 코디-연결형: 어떤 gap을 채우는 상품인지
+  gapReason?: string;   // 사용자에게 보여줄 코디/날씨 연결 문구
+}
+
+interface GapRequest {
+  key: string;
+  reason: string;
 }
 
 interface RequestBody {
@@ -27,6 +34,7 @@ interface RequestBody {
   season: 'summer' | 'winter' | 'spring_fall';
   target_date?: string;
   refresh_seed?: number;
+  gaps?: GapRequest[];   // 코디-연결형: 클라이언트가 분석한 부족분
 }
 
 // 여름/더운 날 신발 pool
@@ -92,6 +100,82 @@ const TRENDY_BRANDS = [
   '지오다노', '탑텐', '에잇세컨즈', '무신사',
 ];
 
+// ── 코디-연결형 gap 그룹별 검색 pool ──
+const OUTER_POOL: Record<string, string[]> = {
+  summer: ['얇은 가디건', '린넨 자켓', '바람막이', '셔츠자켓'],
+  spring_fall: ['가디건', '자켓', '블레이저', '트렌치코트', '후드집업', '맨투맨 집업'],
+  winter: ['패딩', '롱패딩', '울코트', '롱코트', '플리스집업', '숏패딩'],
+};
+const TOP_POOL: Record<string, string[]> = {
+  summer: ['반팔티', '반팔셔츠', '린넨셔츠', '폴로셔츠', '오버핏 반팔'],
+  spring_fall: ['맨투맨', '긴팔티', '셔츠', '얇은 니트', '후드티'],
+  winter: ['니트', '기모 맨투맨', '터틀넥', '두꺼운 니트', '후드티'],
+};
+const BOTTOM_POOL: Record<string, string[]> = {
+  summer: ['반바지', '린넨팬츠', '와이드 반바지', '치노 반바지'],
+  spring_fall: ['청바지', '슬랙스', '와이드팬츠', '치노팬츠'],
+  winter: ['기모팬츠', '기모 슬랙스', '코듀로이팬츠', '두꺼운 슬랙스'],
+};
+const ACC_RAIN = ['장우산', '접이식 우산', '방수 우산'];
+const ACC_COLD = ['목도리', '머플러', '니트 비니', '기모 장갑'];
+const ACC_HOT = ['볼캡', '버킷햇', '캡모자', '선캡'];
+
+function seasonKey(body: RequestBody): 'summer' | 'spring_fall' | 'winter' {
+  if (body.season === 'summer' || body.temp_avg >= 23) return 'summer';
+  if (body.season === 'winter' || body.temp_avg < 10) return 'winter';
+  return 'spring_fall';
+}
+
+function pickFromPool(pool: string[], seed: string): string {
+  return pool[hashSeed(seed) % pool.length];
+}
+
+function pickShoe(body: RequestBody, seed: string): string {
+  const isRainy = body.weather_condition === 'Rain' || body.weather_condition === 'Drizzle';
+  const isSnowy = body.weather_condition === 'Snow';
+  let pool: string[];
+  if (isSnowy) pool = SNOWY_SHOES;
+  else if (isRainy) pool = RAINY_SHOES;
+  else if (body.season === 'summer' || body.temp_avg >= 25) pool = SUMMER_SHOES;
+  else if (body.season === 'winter' || body.temp_avg < 10) pool = WINTER_SHOES;
+  else pool = SPRING_FALL_SHOES;
+  return pool[hashSeed(seed + '-shoe') % pool.length];
+}
+
+/** 쿠팡 인기 상품 우선 + 성별 prefix를 붙인 검색어 생성 */
+function coupangDecorate(base: string, body: RequestBody, seed: string, i: number, usePrefix = true): string {
+  const isFemale = body.gender === 'female';
+  const isMale = body.gender === 'male';
+  const prefix = usePrefix ? (isFemale ? '여성 ' : isMale ? '남성 ' : '') : '';
+  const q = `${prefix}${base}`.trim();
+  const modType = hashSeed(seed + `-mod${i}`) % 3;
+  if (modType === 0) return `쿠팡 베스트 ${q}`;
+  if (modType === 1) return `쿠팡 ${q} 랭킹`;
+  return `쿠팡 인기 ${q}`;
+}
+
+/** gap.key → 실제 네이버 쇼핑 검색어 */
+function buildGapQuery(gap: GapRequest, body: RequestBody, seed: string, i: number): string {
+  const sk = seasonKey(body);
+  if (gap.key === 'shoes') {
+    return coupangDecorate(pickShoe(body, seed), body, seed, i);
+  }
+  if (gap.key === 'outerwear') {
+    return coupangDecorate(pickFromPool(OUTER_POOL[sk], seed + '-out'), body, seed, i);
+  }
+  if (gap.key === 'top') {
+    return coupangDecorate(pickFromPool(TOP_POOL[sk], seed + '-top'), body, seed, i);
+  }
+  if (gap.key === 'bottom') {
+    return coupangDecorate(pickFromPool(BOTTOM_POOL[sk], seed + '-bot'), body, seed, i);
+  }
+  // accessory (성별 prefix 없이 — '남성 우산' 어색함 방지)
+  const isRain = body.weather_condition === 'Rain' || body.weather_condition === 'Drizzle' || body.weather_condition === 'Thunderstorm';
+  const isSnow = body.weather_condition === 'Snow';
+  const pool = isRain ? ACC_RAIN : (isSnow || body.temp_avg < 10) ? ACC_COLD : ACC_HOT;
+  return coupangDecorate(pickFromPool(pool, seed + '-acc'), body, seed, i, false);
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -138,31 +222,48 @@ Deno.serve(async (req) => {
 
     const seed = `${targetDate}-${userId}-${body.weather_condition}_${body.temp_avg}-${body.refresh_seed ?? 0}`;
 
-    const categories = getCategoriesForWeather(body, seed);
-    console.log('[shopping-recs] queries:', categories);
+    const gaps = Array.isArray(body.gaps) && body.gaps.length > 0 ? body.gaps : null;
+
+    // 코디-연결형: gap마다 검색어 1개 (부족분 + 신발).
+    // gap 없으면(구버전 클라이언트) 기존 날씨 카테고리 방식으로 폴백.
+    const queries: { q: string; gapKey?: string; gapReason?: string }[] = gaps
+      ? gaps.map((g, i) => ({
+          q: buildGapQuery(g, body, seed, i),
+          gapKey: g.key,
+          gapReason: g.reason,
+        }))
+      : getCategoriesForWeather(body, seed).map((q) => ({ q }));
+
+    console.log('[shopping-recs] queries:', queries.map((x) => x.q));
 
     const results = await Promise.all(
-      categories.map((cat, i) => fetchNaverShopping(cat, seed + '-' + i)),
+      queries.map((qq, i) =>
+        fetchNaverShopping(qq.q, seed + '-' + i).then((items) =>
+          items.map((p) => ({ ...p, gapKey: qq.gapKey, gapReason: qq.gapReason })),
+        ),
+      ),
     );
 
+    // gap(그룹)별로 쿠팡·성별·계절 필터 후 균등 배분 (그룹 순서 유지)
+    const perGroup = gaps ? Math.max(3, Math.ceil(12 / queries.length)) : 12;
     const seen = new Set<string>();
     let products: Product[] = [];
     for (const items of results) {
-      for (const p of items) {
-        if (!seen.has(p.id)) {
-          seen.add(p.id);
-          products.push(p);
-        }
+      let filtered = items.filter((p) => p.mall === '쿠팡');
+      filtered = filterByGender(filtered, body.gender);
+      filtered = filterBySeason(filtered, body);
+      filtered = seededShuffle(filtered, seed);
+      let taken = 0;
+      for (const p of filtered) {
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        products.push(p);
+        taken++;
+        if (gaps && taken >= perGroup) break;
       }
     }
-    // 쿠팡 상품만 필터링 (파트너 커미션 최적화)
-    products = products.filter((p) => p.mall === '쿠팡');
-    products = filterByGender(products, body.gender);
-    products = filterBySeason(products, body);
-    products = seededShuffle(products, seed);
-    // 12개로 확대
-    const finalProducts = products.slice(0, 12);
-    console.log('[shopping-recs] total products (Coupang only + filtered):', finalProducts.length);
+    const finalProducts = gaps ? products.slice(0, 15) : products.slice(0, 12);
+    console.log('[shopping-recs] final products:', finalProducts.length, 'groups:', queries.length);
 
     if (finalProducts.length === 0) {
       return json({ error: '상품을 찾지 못했어요' }, 502);

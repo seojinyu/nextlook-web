@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, invokeEdge } from '../../lib/supabase';
 import { getWeatherSeason } from '../../lib/recommend/weatherFit';
-import type { WeatherSnapshot } from '../../lib/types';
+import type { Clothing, OutfitSuggestion, WeatherSnapshot } from '../../lib/types';
+import { computeOutfitGaps } from './outfitGaps';
 
 export interface ShoppingProduct {
   id: string;
@@ -19,6 +20,8 @@ export interface ShoppingProduct {
   brand?: string;
   productUrl: string;
   originalUrl: string;
+  gapKey?: string;
+  gapReason?: string;
 }
 
 interface Result {
@@ -28,7 +31,12 @@ interface Result {
   gender?: string;
 }
 
-export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: string) {
+export function useShoppingRecs(
+  weather: WeatherSnapshot | null,
+  targetDate?: string,
+  primary?: OutfitSuggestion | null,
+  clothes?: Clothing[] | null,
+) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -55,6 +63,7 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
 
       const season = getWeatherSeason(weather);
       const tempAvg = Math.round((weather.temp_min_c + weather.temp_max_c) / 2);
+      const gaps = computeOutfitGaps(weather, clothes ?? null, primary ?? null);
 
       const res = await invokeEdge<Result>('shopping-recs', {
         gender,
@@ -63,8 +72,10 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
         season,
         target_date: targetDate,
         refresh_seed: refreshSeed,
+        gaps,
       });
       console.log('[useShoppingRecs] 상품:', res.products?.length ?? 0,
+                  'gaps:', gaps.map((g) => g.key).join(','),
                   'date:', targetDate, 'refresh:', refreshSeed);
       setResult(res);
     } catch (e: any) {
@@ -73,17 +84,22 @@ export function useShoppingRecs(weather: WeatherSnapshot | null, targetDate?: st
     } finally {
       setLoading(false);
     }
-  }, [weather, targetDate]);
+  }, [weather, targetDate, primary, clothes]);
 
   useEffect(() => {
     if (!weather) return;
-    const currentKey = `${targetDate}_${weather.condition}_${weather.temp_min_c}_${weather.temp_max_c}`;
+    // gap 집합이 바뀔 때(예: 아우터 없음→있음)도 재조회하도록 시그니처에 포함.
+    // primary 객체 identity가 매번 바뀌어도 gap 키가 같으면 재조회하지 않음.
+    const gapSig = computeOutfitGaps(weather, clothes ?? null, primary ?? null)
+      .map((g) => g.key)
+      .join(',');
+    const currentKey = `${targetDate}_${weather.condition}_${weather.temp_min_c}_${weather.temp_max_c}_${gapSig}`;
     if (currentKey !== lastKeyRef.current) {
       lastKeyRef.current = currentKey;
       load(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetDate, weather?.condition, weather?.temp_min_c, weather?.temp_max_c]);
+  }, [targetDate, weather?.condition, weather?.temp_min_c, weather?.temp_max_c, primary, clothes]);
 
   const refresh = useCallback(() => {
     const randomSeed = Date.now() + Math.floor(Math.random() * 10000);

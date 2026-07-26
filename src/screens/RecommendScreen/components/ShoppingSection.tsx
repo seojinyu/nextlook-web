@@ -1,10 +1,11 @@
 /**
- * TODAY'S PICK 섹션 - 오늘 날씨 맞춤 쇼핑 추천.
+ * Complete the Look 섹션 - 코디-연결형 쇼핑 추천.
  *
- * - 네이버 쇼핑 API 기반 실제 상품
- * - 매거진 스타일 카드 UI
- * - 성별 배지 표시
+ * 오늘의 추천 코디 + 옷장 + 날씨를 분석해 "부족한 것"을 그룹으로 제안.
+ * - 각 그룹(아우터/하의/신발/악세서리)마다 "왜 필요한지" 코디 연결 문구 표시
+ * - 쿠팡 파트너스 실제 상품
  */
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BOTTEGA, H_PAD } from '../constants';
@@ -20,16 +21,48 @@ interface Props {
   onRefresh?: () => void;
 }
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const GAP_META: Record<string, { label: string; icon: IoniconName }> = {
+  outerwear: { label: '아우터', icon: 'shirt-outline' },
+  top: { label: '상의', icon: 'shirt-outline' },
+  bottom: { label: '하의', icon: 'layers-outline' },
+  shoes: { label: '신발', icon: 'footsteps-outline' },
+  accessory: { label: '포인트', icon: 'bag-handle-outline' },
+  pick: { label: '추천', icon: 'sparkles-outline' },
+};
+
+interface Group {
+  key: string;
+  reason?: string;
+  items: ShoppingProduct[];
+}
+
 export default function ShoppingSection({
   loading, error, products, weather, userGender, onRefresh,
 }: Props) {
+  const groups = useMemo<Group[]>(() => {
+    const order: string[] = [];
+    const map = new Map<string, ShoppingProduct[]>();
+    for (const p of products) {
+      const k = p.gapKey ?? 'pick';
+      if (!map.has(k)) { map.set(k, []); order.push(k); }
+      map.get(k)!.push(p);
+    }
+    return order.map((k) => ({
+      key: k,
+      reason: map.get(k)!.find((p) => p.gapReason)?.gapReason,
+      items: map.get(k)!,
+    }));
+  }, [products]);
+
   if (loading) {
     return (
       <View style={{ paddingHorizontal: H_PAD, paddingBottom: 24 }}>
         <SectionHeader weather={weather} userGender={userGender} onRefresh={undefined} />
         <View
           style={{
-            height: 280,
+            height: 240,
             borderRadius: 20,
             backgroundColor: '#1A1A1A',
             alignItems: 'center',
@@ -38,7 +71,7 @@ export default function ShoppingSection({
         >
           <ActivityIndicator size="large" color="#fff" />
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 12, letterSpacing: 1 }}>
-            오늘의 아이템 찾는 중...
+            코디 완성 아이템 찾는 중...
           </Text>
         </View>
       </View>
@@ -73,86 +106,133 @@ export default function ShoppingSection({
         </View>
       )}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: H_PAD, gap: 12 }}
-        decelerationRate="fast"
-        snapToInterval={172}
-      >
-        {products.map((p, i) => (
-          <TouchableOpacity
-            key={`${p.id}-${i}`}
-            style={{
-              width: 160,
-              backgroundColor: '#fff',
-              borderRadius: 16,
-              overflow: 'hidden',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              elevation: 3,
-            }}
-            onPress={() => Linking.openURL(p.productUrl)}
-            activeOpacity={0.85}
+      {groups.map((group) => (
+        <View key={group.key} style={{ marginBottom: 18 }}>
+          <GroupHeader gapKey={group.key} reason={group.reason} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: H_PAD, gap: 12 }}
+            decelerationRate="fast"
+            snapToInterval={172}
           >
-            <View style={{ position: 'relative' }}>
-              <Image
-                source={{ uri: p.image }}
-                style={{ width: 160, height: 200, backgroundColor: '#F5F4F2' }}
-                resizeMode="cover"
-              />
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  backgroundColor: getMallColor(p.mall),
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 6,
-                }}
-              >
-                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
-                  {p.mall}
-                </Text>
-              </View>
-            </View>
-
-            <View style={{ padding: 10 }}>
-              {p.brand && (
-                <Text
-                  style={{ fontSize: 10, fontWeight: '700', color: '#7A7570', letterSpacing: 0.5, marginBottom: 3 }}
-                  numberOfLines={1}
-                >
-                  {p.brand.toUpperCase()}
-                </Text>
-              )}
-              <Text
-                style={{ fontSize: 12, fontWeight: '600', color: '#1A1A1A', lineHeight: 16, marginBottom: 6 }}
-                numberOfLines={2}
-              >
-                {p.title}
-              </Text>
-              <Text
-                style={{ fontSize: 15, fontWeight: '900', color: '#1A1A1A', letterSpacing: -0.5 }}
-              >
-                {p.price.toLocaleString()}
-                <Text style={{ fontSize: 11, fontWeight: '600', color: '#7A7570' }}>원</Text>
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            {group.items.map((p, i) => (
+              <ProductCard key={`${p.id}-${i}`} product={p} />
+            ))}
+          </ScrollView>
+        </View>
+      ))}
 
       {/* 어필리에이트 명시 (미니멀 · 법적 필수) */}
-      <View style={{ paddingHorizontal: H_PAD, marginTop: 10, opacity: 0.45 }}>
+      <View style={{ paddingHorizontal: H_PAD, marginTop: 2, opacity: 0.45 }}>
         <Text style={{ fontSize: 9, color: '#B5B0AB', letterSpacing: 0.2 }}>
           · 파트너스 활동으로 수수료를 받을 수 있어요
         </Text>
       </View>
     </View>
+  );
+}
+
+/** gap 그룹 헤더 — 아이콘 칩 + 라벨 + 코디 연결 이유 */
+function GroupHeader({ gapKey, reason }: { gapKey: string; reason?: string }) {
+  const meta = GAP_META[gapKey] ?? GAP_META.pick;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: H_PAD,
+        marginBottom: 10,
+      }}
+    >
+      <View
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          backgroundColor: 'rgba(27, 107, 74, 0.1)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={meta.icon} size={15} color="#1B6B4A" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.2 }}>
+          {meta.label}
+        </Text>
+        {reason && (
+          <Text style={{ fontSize: 11, fontWeight: '600', color: '#8A857F', marginTop: 1 }} numberOfLines={1}>
+            {reason}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function ProductCard({ product: p }: { product: ShoppingProduct }) {
+  return (
+    <TouchableOpacity
+      style={{
+        width: 160,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
+      }}
+      onPress={() => Linking.openURL(p.productUrl)}
+      activeOpacity={0.85}
+    >
+      <View style={{ position: 'relative' }}>
+        <Image
+          source={{ uri: p.image }}
+          style={{ width: 160, height: 200, backgroundColor: '#F5F4F2' }}
+          resizeMode="cover"
+        />
+        <View
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            backgroundColor: getMallColor(p.mall),
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 6,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
+            {p.mall}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ padding: 10 }}>
+        {p.brand && (
+          <Text
+            style={{ fontSize: 10, fontWeight: '700', color: '#7A7570', letterSpacing: 0.5, marginBottom: 3 }}
+            numberOfLines={1}
+          >
+            {p.brand.toUpperCase()}
+          </Text>
+        )}
+        <Text
+          style={{ fontSize: 12, fontWeight: '600', color: '#1A1A1A', lineHeight: 16, marginBottom: 6 }}
+          numberOfLines={2}
+        >
+          {p.title}
+        </Text>
+        <Text style={{ fontSize: 15, fontWeight: '900', color: '#1A1A1A', letterSpacing: -0.5 }}>
+          {p.price.toLocaleString()}
+          <Text style={{ fontSize: 11, fontWeight: '600', color: '#7A7570' }}>원</Text>
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -190,12 +270,12 @@ function SectionHeader({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <View style={{ width: 24, height: 2, backgroundColor: BOTTEGA, borderRadius: 1 }} />
           <Text style={{ fontSize: 10, fontWeight: '700', color: BOTTEGA, letterSpacing: 2 }}>
-            TODAY'S PICK
+            COMPLETE THE LOOK
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <Text style={{ fontSize: 26, fontWeight: '900', color: '#1A1A1A', letterSpacing: -0.8 }}>
-            Shop Today
+            코디 완성하기
           </Text>
           {genderLabel && (
             <View
