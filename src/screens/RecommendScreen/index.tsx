@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { getForecastDates } from '../../lib/weather';
 
-import { H_PAD, BOTTEGA } from './constants';
+import { H_PAD, INK } from './constants';
 import { styles } from './styles';
 import { useRecommendData } from './useRecommendData';
 
@@ -126,7 +126,7 @@ export default function RecommendScreen() {
 
         {loading && (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={BOTTEGA} />
+            <ActivityIndicator size="large" color={INK} />
             <Text style={styles.loadingText}>추천 조합을 만들고 있어요...</Text>
           </View>
         )}

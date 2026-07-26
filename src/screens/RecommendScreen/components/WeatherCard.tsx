@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CONDITION_KR, BOTTEGA } from '../constants';
+import { CONDITION_KR, LIME, INK } from '../constants';
 import { getWeatherIconName } from '../helpers';
 import type { WeatherSnapshot } from '../../../lib/types';
 
@@ -27,9 +27,9 @@ export default function WeatherCard({ weather, currentTemp, isToday }: Props) {
     >
       {/* 상단 라벨 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 12 }}>
-        <View style={{ width: 16, height: 2, backgroundColor: BOTTEGA, borderRadius: 1 }} />
+        <View style={{ width: 16, height: 3, backgroundColor: LIME, borderRadius: 2 }} />
         <Text
-          style={{ fontSize: 9, fontWeight: '800', color: BOTTEGA, letterSpacing: 1.8 }}
+          style={{ fontSize: 9, fontWeight: '900', color: LIME, letterSpacing: 1.8 }}
         >
           {isToday ? "TODAY'S WEATHER" : "FORECAST"}
         </Text>
@@ -38,7 +38,7 @@ export default function WeatherCard({ weather, currentTemp, isToday }: Props) {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {/* 왼쪽: 큰 아이콘 */}
         <LinearGradient
-          colors={['rgba(27,107,74,0.3)', 'rgba(27,107,74,0.1)']}
+          colors={['rgba(203,255,60,0.28)', 'rgba(203,255,60,0.08)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
@@ -48,6 +48,8 @@ export default function WeatherCard({ weather, currentTemp, isToday }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             marginRight: 16,
+            borderWidth: 1,
+            borderColor: 'rgba(203,255,60,0.25)',
           }}
         >
           <Ionicons name={iconName as any} size={28} color="#fff" />
@@ -69,12 +71,20 @@ export default function WeatherCard({ weather, currentTemp, isToday }: Props) {
               >
                 {currentTemp}°
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>
-                  NOW
-                </Text>
-                <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>·</Text>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.55)' }}>
+              <View style={{ alignItems: 'flex-start', gap: 4 }}>
+                <View
+                  style={{
+                    backgroundColor: LIME,
+                    paddingHorizontal: 7,
+                    paddingVertical: 2,
+                    borderRadius: 6,
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontWeight: '900', color: INK, letterSpacing: 1 }}>
+                    NOW
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.55)' }}>
                   {weather.temp_max_c}°/{weather.temp_min_c}°
                 </Text>
               </View>

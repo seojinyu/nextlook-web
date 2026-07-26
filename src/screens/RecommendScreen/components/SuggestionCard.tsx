@@ -1,8 +1,7 @@
 import { memo } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COMBO_LABELS, BOTTEGA } from '../constants';
+import { COMBO_LABELS, LIME, INK } from '../constants';
 import { getSlotSize } from '../helpers';
 import { styles } from '../styles';
 import MannequinView from './MannequinView';
@@ -60,18 +59,18 @@ function SuggestionCard({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: '#1A1A1A',
+              width: 42,
+              height: 42,
+              borderRadius: 13,
+              backgroundColor: LIME,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
             <Text
               style={{
-                color: '#fff',
-                fontSize: 18,
+                color: INK,
+                fontSize: 20,
                 fontWeight: '900',
                 letterSpacing: -0.5,
               }}
@@ -80,18 +79,18 @@ function SuggestionCard({
             </Text>
           </View>
           <View>
-            <Text style={{ fontSize: 9, fontWeight: '700', color: BOTTEGA, letterSpacing: 1.5 }}>
+            <Text style={{ fontSize: 9, fontWeight: '900', color: '#A8A4A0', letterSpacing: 1.5 }}>
               STYLE
             </Text>
             <Text
               style={{
-                fontSize: 15,
-                fontWeight: '800',
-                color: '#1A1A1A',
-                letterSpacing: -0.3,
+                fontSize: 17,
+                fontWeight: '900',
+                color: INK,
+                letterSpacing: -0.5,
               }}
             >
-              Look {styleLabel}
+              LOOK {styleLabel}
             </Text>
           </View>
         </View>
@@ -182,57 +181,54 @@ function SuggestionCard({
         />
       )}
 
-      {/* CTA 버튼 - 그라데이션 */}
+      {/* CTA 버튼 — 볼드 스트리트 (미확정: 라임 / 확정: INK) */}
       <TouchableOpacity
         onPress={() => onConfirm(i)}
         disabled={confirming !== null || confirmed}
         activeOpacity={0.85}
-        style={{ marginTop: 16, borderRadius: 16, overflow: 'hidden' }}
+        style={{
+          marginTop: 16,
+          borderRadius: 16,
+          overflow: 'hidden',
+          paddingVertical: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+          gap: 7,
+          backgroundColor: confirmed ? INK : LIME,
+        }}
       >
-        <LinearGradient
-          colors={confirmed ? ['#4A8B5C', '#3D724D'] : ['#1A1A1A', '#333333']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={{
-            paddingVertical: 15,
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            gap: 6,
-          }}
-        >
-          {confirming === i ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : confirmed ? (
-            <>
-              <Ionicons name="checkmark-circle" size={16} color="#fff" />
-              <Text
-                style={{
-                  color: '#fff',
-                  fontWeight: '800',
-                  fontSize: 13,
-                  letterSpacing: 1,
-                }}
-              >
-                SAVED
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text
-                style={{
-                  color: '#fff',
-                  fontWeight: '800',
-                  fontSize: 13,
-                  letterSpacing: 1,
-                }}
-              >
-                WEAR THIS TODAY
-              </Text>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
-            </>
-          )}
-        </LinearGradient>
+        {confirming === i ? (
+          <ActivityIndicator color={confirmed ? '#fff' : INK} size="small" />
+        ) : confirmed ? (
+          <>
+            <Ionicons name="checkmark-circle" size={17} color={LIME} />
+            <Text
+              style={{
+                color: '#fff',
+                fontWeight: '900',
+                fontSize: 14,
+                letterSpacing: 0.5,
+              }}
+            >
+              오늘의 룩 저장됨
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text
+              style={{
+                color: INK,
+                fontWeight: '900',
+                fontSize: 15,
+                letterSpacing: -0.3,
+              }}
+            >
+              오늘 이거 입기
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color={INK} />
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );

@@ -1,17 +1,17 @@
 import { StyleSheet } from 'react-native';
-import { H_PAD, BOTTEGA, DATE_CHIP_SIZE, SLOT_GAP } from './constants';
+import { H_PAD, BOTTEGA, LIME, INK, DATE_CHIP_SIZE, SLOT_GAP } from './constants';
 
 export const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FAFAF8' },
 
   // ─── Header ───
   header: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: INK,
     paddingHorizontal: H_PAD,
     paddingTop: 16,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: 26,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     marginBottom: 20,
   },
   headerInner: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18, gap: 8 },
@@ -32,15 +32,16 @@ export const styles = StyleSheet.create({
   // ─── Date Picker ───
   datePicker: { marginBottom: 16 },
   dateItem: {
-    width: DATE_CHIP_SIZE, height: DATE_CHIP_SIZE + 10, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center', justifyContent: 'center', gap: 2,
+    width: DATE_CHIP_SIZE, height: DATE_CHIP_SIZE + 12, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center', gap: 3,
   },
-  dateItemActive: { backgroundColor: BOTTEGA },
-  dateItemWeekday: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
-  dateItemWeekdayActive: { color: 'rgba(255,255,255,0.8)' },
-  dateItemDay: { fontSize: 18, fontWeight: '800', color: 'rgba(255,255,255,0.5)' },
-  dateItemDayActive: { color: '#fff' },
+  dateItemActive: { backgroundColor: LIME, borderColor: LIME },
+  dateItemWeekday: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.45)' },
+  dateItemWeekdayActive: { color: 'rgba(0,0,0,0.55)' },
+  dateItemDay: { fontSize: 19, fontWeight: '900', color: 'rgba(255,255,255,0.55)', letterSpacing: -0.5 },
+  dateItemDayActive: { color: INK },
 
   // ─── Weather Card ───
   weatherCard: {
@@ -160,9 +161,9 @@ export const styles = StyleSheet.create({
   slots: { flexDirection: 'row', gap: SLOT_GAP },
   slotWrap: { alignItems: 'center' },
   slotLabelWrap: {
-    backgroundColor: '#E8F0EC', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6, marginBottom: 8,
+    backgroundColor: INK, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6, marginBottom: 8,
   },
-  slotLabel: { fontSize: 11, fontWeight: '700', color: BOTTEGA, textAlign: 'center' },
+  slotLabel: { fontSize: 11, fontWeight: '900', color: '#fff', textAlign: 'center', letterSpacing: 0.3 },
   slotImage: { borderRadius: 22, backgroundColor: '#F5F4F2' },
   slotEmpty: { alignItems: 'center', justifyContent: 'center' },
   wearBtn: {

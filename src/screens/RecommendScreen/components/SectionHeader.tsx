@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BOTTEGA } from '../constants';
+import { LIME, INK } from '../constants';
 
 interface Props {
   viewMode: 'grid' | 'mannequin';
@@ -20,22 +20,25 @@ export default function SectionHeader({ viewMode, onChangeViewMode }: Props) {
       <View style={{ flex: 1 }}>
         {/* 상단 라벨 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <View style={{ width: 24, height: 2, backgroundColor: BOTTEGA, borderRadius: 1 }} />
-          <Text style={{ fontSize: 10, fontWeight: '700', color: BOTTEGA, letterSpacing: 2 }}>
+          <View style={{ width: 24, height: 3, backgroundColor: INK, borderRadius: 2 }} />
+          <Text style={{ fontSize: 10, fontWeight: '900', color: INK, letterSpacing: 2 }}>
             FROM YOUR CLOSET
           </Text>
         </View>
         {/* 메인 타이틀 */}
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: '900',
-            color: '#1A1A1A',
-            letterSpacing: -0.8,
-          }}
-        >
-          My Picks
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+          <Text
+            style={{
+              fontSize: 30,
+              fontWeight: '900',
+              color: INK,
+              letterSpacing: -1.2,
+            }}
+          >
+            MY PICKS
+          </Text>
+          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: LIME, marginBottom: 4 }} />
+        </View>
       </View>
 
       {/* 뷰 모드 토글 */}

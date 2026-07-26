@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BOTTEGA, H_PAD } from '../constants';
+import { LIME, INK, H_PAD } from '../constants';
 import type { ShoppingProduct } from '../useShoppingRecs';
 import type { WeatherSnapshot } from '../../../lib/types';
 
@@ -148,18 +148,18 @@ function GroupHeader({ gapKey, reason }: { gapKey: string; reason?: string }) {
     >
       <View
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          backgroundColor: 'rgba(27, 107, 74, 0.1)',
+          width: 30,
+          height: 30,
+          borderRadius: 9,
+          backgroundColor: LIME,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Ionicons name={meta.icon} size={15} color="#1B6B4A" />
+        <Ionicons name={meta.icon} size={16} color={INK} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.2 }}>
+        <Text style={{ fontSize: 14, fontWeight: '900', color: INK, letterSpacing: -0.3 }}>
           {meta.label}
         </Text>
         {reason && (
@@ -268,25 +268,25 @@ function SectionHeader({
     >
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <View style={{ width: 24, height: 2, backgroundColor: BOTTEGA, borderRadius: 1 }} />
-          <Text style={{ fontSize: 10, fontWeight: '700', color: BOTTEGA, letterSpacing: 2 }}>
+          <View style={{ width: 24, height: 3, backgroundColor: INK, borderRadius: 2 }} />
+          <Text style={{ fontSize: 10, fontWeight: '900', color: INK, letterSpacing: 2 }}>
             COMPLETE THE LOOK
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 26, fontWeight: '900', color: '#1A1A1A', letterSpacing: -0.8 }}>
+          <Text style={{ fontSize: 30, fontWeight: '900', color: INK, letterSpacing: -1.2 }}>
             코디 완성하기
           </Text>
           {genderLabel && (
             <View
               style={{
-                backgroundColor: '#1B6B4A',
+                backgroundColor: LIME,
                 paddingHorizontal: 8,
                 paddingVertical: 3,
                 borderRadius: 10,
               }}
             >
-              <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: '900', color: INK, letterSpacing: 1 }}>
                 {genderLabel}
               </Text>
             </View>
@@ -294,13 +294,13 @@ function SectionHeader({
           {temp !== null && (
             <View
               style={{
-                backgroundColor: '#1A1A1A',
+                backgroundColor: INK,
                 paddingHorizontal: 8,
                 paddingVertical: 3,
                 borderRadius: 10,
               }}
             >
-              <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>
+              <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.5 }}>
                 {temp}° · {conditionKr}
               </Text>
             </View>
@@ -316,14 +316,14 @@ function SectionHeader({
             flexDirection: 'row',
             alignItems: 'center',
             gap: 5,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
+            paddingHorizontal: 13,
+            paddingVertical: 9,
             borderRadius: 20,
-            backgroundColor: '#F0EDEA',
+            backgroundColor: INK,
           }}
         >
-          <Ionicons name="refresh" size={12} color={BOTTEGA} />
-          <Text style={{ color: BOTTEGA, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>
+          <Ionicons name="refresh" size={12} color={LIME} />
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 }}>
             새로 찾기
           </Text>
         </TouchableOpacity>

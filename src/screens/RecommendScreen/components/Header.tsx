@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { confirm } from '../../../lib/confirm';
 import { formatDate } from '../helpers';
-import { BOTTEGA } from '../constants';
+import { LIME, INK } from '../constants';
 
 const ADMIN_EMAILS = ['seojinyu89@gmail.com'];
 
@@ -37,72 +37,92 @@ export default function Header({ date, loading, onRefresh }: Props) {
 
   return (
     <View style={{ marginBottom: 20 }}>
-      {/* 상단 액션 바 */}
+      {/* 상단 액션 바 — 좌: 워드마크 / 우: 액션 */}
       <View
         style={{
           flexDirection: 'row',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 8,
-          marginBottom: 20,
+          marginBottom: 22,
         }}
       >
-        {isAdmin && (
+        {/* 스티커 워드마크 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <View
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 6,
+              backgroundColor: LIME,
+            }}
+          />
+          <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 1 }}>
+            NEXTLOOK
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Admin')}
+              activeOpacity={0.7}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                backgroundColor: LIME,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="shield-checkmark" size={17} color={INK} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            onPress={() => navigation.navigate('Admin')}
+            onPress={onRefresh}
+            disabled={loading}
             activeOpacity={0.7}
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'rgba(196,154,60,0.2)',
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.12)',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Ionicons name="shield-checkmark" size={16} color="#C49A3C" />
+            <Ionicons name="refresh" size={17} color="#fff" />
           </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={onRefresh}
-          disabled={loading}
-          activeOpacity={0.7}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="refresh" size={16} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleLogout}
-          activeOpacity={0.7}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="log-out-outline" size={16} color="#fff" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleLogout}
+            activeOpacity={0.7}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.12)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="log-out-outline" size={17} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Hero 타이틀 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-        <View style={{ width: 20, height: 2, backgroundColor: BOTTEGA, borderRadius: 1 }} />
+      {/* Hero 타이틀 — 볼드 + 라임 하이라이터 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <View style={{ width: 22, height: 3, backgroundColor: LIME, borderRadius: 2 }} />
         <Text
           style={{
-            fontSize: 10,
-            fontWeight: '700',
-            color: BOTTEGA,
-            letterSpacing: 2,
+            fontSize: 11,
+            fontWeight: '900',
+            color: LIME,
+            letterSpacing: 2.5,
           }}
         >
           DAILY LOOK
@@ -111,25 +131,42 @@ export default function Header({ date, loading, onRefresh }: Props) {
 
       <Text
         style={{
-          fontSize: 34,
+          fontSize: 44,
           fontWeight: '900',
           color: '#fff',
-          letterSpacing: -1,
-          lineHeight: 40,
+          letterSpacing: -2,
+          lineHeight: 46,
         }}
       >
-        What to{'\n'}
-        <Text style={{ color: BOTTEGA }}>Wear Today</Text>
+        WHAT TO
       </Text>
+      <View style={{ flexDirection: 'row', marginTop: 2 }}>
+        <Text
+          style={{
+            fontSize: 44,
+            fontWeight: '900',
+            color: INK,
+            backgroundColor: LIME,
+            letterSpacing: -2,
+            lineHeight: 46,
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 6,
+            overflow: 'hidden',
+          }}
+        >
+          WEAR TODAY
+        </Text>
+      </View>
 
       {date && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
-          <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.5)" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
+          <Ionicons name="calendar-clear" size={12} color={LIME} />
           <Text
             style={{
               fontSize: 12,
-              fontWeight: '600',
-              color: 'rgba(255,255,255,0.55)',
+              fontWeight: '700',
+              color: 'rgba(255,255,255,0.6)',
               letterSpacing: 0.3,
             }}
           >
