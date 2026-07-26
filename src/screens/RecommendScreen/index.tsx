@@ -109,16 +109,7 @@ export default function RecommendScreen() {
         )}
       </View>
 
-      {/* 오늘의 쇼핑 추천 (성별·날씨 맞춤 실제 상품) */}
-      <ShoppingSection
-        loading={shopping.loading}
-        error={shopping.error}
-        products={shopping.products}
-        weather={weather}
-        userGender={shopping.userGender}
-        onRefresh={shopping.refresh}
-      />
-
+      {/* 1) 내 옷장 추천 코디 (앱의 핵심) */}
       <View style={{ paddingHorizontal: H_PAD }}>
         {!loading && suggestions.length > 0 && (
           <SectionHeader viewMode={viewMode} onChangeViewMode={setViewMode} />
@@ -148,6 +139,16 @@ export default function RecommendScreen() {
           <EmptyState clothes={getCachedClothes()} weather={weather} />
         )}
       </View>
+
+      {/* 2) 코디 완성하기 — 추천 코디를 완성하는 쇼핑 아이템 (핵심 아래에 배치) */}
+      <ShoppingSection
+        loading={shopping.loading}
+        error={shopping.error}
+        products={shopping.products}
+        weather={weather}
+        userGender={shopping.userGender}
+        onRefresh={shopping.refresh}
+      />
 
       <NoteModal
         visible={noteModalIdx !== null}
