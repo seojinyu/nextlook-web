@@ -43,6 +43,7 @@ export function useShoppingRecs(
   const [userGender, setUserGender] = useState<string | null>(null);
 
   const lastKeyRef = useRef<string>('');
+  const autoBustedRef = useRef<string>('');
 
   const load = useCallback(async (refreshSeed = 0) => {
     if (!weather) return;
@@ -85,6 +86,15 @@ export function useShoppingRecs(
                   'gaps:', gaps.map((g) => g.key).join(','),
                   'date:', targetDate, 'refresh:', refreshSeed);
       setResult({ ...res, products: finalProducts });
+
+      // 오늘 날짜의 오래된 캐시(구버전 flat: gapKey 없음)면 1회 자동 새로고침해
+      // 최신 로직(브랜드 필터 + 코디 그룹)을 오늘부터 즉시 반영.
+      const looksStale = res.cached === true && all.length > 0 && !(all[0] as any).gapKey;
+      if (refreshSeed === 0 && looksStale && autoBustedRef.current !== lastKeyRef.current) {
+        autoBustedRef.current = lastKeyRef.current;
+        console.log('[useShoppingRecs] 오래된 캐시 감지 → 오늘치 자동 새로고침');
+        load(Date.now() + Math.floor(Math.random() * 10000));
+      }
     } catch (e: any) {
       console.warn('[useShoppingRecs] fail:', e);
       setError(e.message ?? String(e));
