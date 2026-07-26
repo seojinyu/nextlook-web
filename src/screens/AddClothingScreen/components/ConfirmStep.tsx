@@ -1,7 +1,6 @@
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { H_PAD, PREVIEW_SIZE, type ColorEntry } from '../constants';
+import { H_PAD, PREVIEW_SIZE, LIME, INK, type ColorEntry } from '../constants';
 import { styles } from '../styles';
 import DetectedBox from './DetectedBox';
 import SeasonPicker from './SeasonPicker';
@@ -52,26 +51,19 @@ export default function ConfirmStep({
 
       <View style={[styles.bottomBar, { paddingBottom: insetsBottom + 16 }]}>
         <TouchableOpacity
-          style={styles.saveBtnWrap}
+          style={[styles.saveBtnWrap, styles.btnGradient, { backgroundColor: LIME }]}
           onPress={onSave}
           disabled={saving}
           activeOpacity={0.85}
         >
-          <LinearGradient
-            colors={['#1A1A1A', '#2D2D2D']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.btnGradient}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                <Text style={styles.primaryBtnText}>  옷장에 저장</Text>
-              </>
-            )}
-          </LinearGradient>
+          {saving ? (
+            <ActivityIndicator color={INK} />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle" size={19} color={INK} />
+              <Text style={[styles.primaryBtnText, { color: INK }]}>  옷장에 저장</Text>
+            </>
+          )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.secondaryBtn} onPress={onReset} activeOpacity={0.7}>
           <Ionicons name="refresh" size={16} color="#1A1A1A" />

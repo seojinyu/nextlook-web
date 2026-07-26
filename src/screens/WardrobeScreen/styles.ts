@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { AMBER, AMBER_LIGHT, AMBER_SELECTED, COLOR_GAP, MODAL_PAD } from './constants';
+import { AMBER, AMBER_LIGHT, AMBER_SELECTED, LIME, INK, COLOR_GAP, MODAL_PAD } from './constants';
 
 export const styles = StyleSheet.create({
   root: {
@@ -15,8 +15,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingBottom: 12, backgroundColor: '#fff',
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.5 },
-  headerCount: { fontSize: 12, color: '#7A7570', marginTop: 2 },
+  headerTitle: { fontSize: 26, fontWeight: '900', color: INK, letterSpacing: -1 },
+  headerCount: { fontSize: 12, color: '#7A7570', marginTop: 2, fontWeight: '700' },
   headerRight: { flexDirection: 'row', gap: 8 },
   headerIconBtn: {
     width: 36, height: 36, borderRadius: 12,
@@ -42,9 +42,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     backgroundColor: AMBER_LIGHT,
   },
-  filterChipActive: { backgroundColor: AMBER },
-  filterText: { fontSize: 13, fontWeight: '600', color: '#7A7570' },
-  filterTextActive: { color: '#fff' },
+  filterChipActive: { backgroundColor: LIME },
+  filterText: { fontSize: 13, fontWeight: '700', color: '#7A7570' },
+  filterTextActive: { color: INK },
 
   // ─── Search + Sort ───
   searchRow: {
@@ -84,7 +84,7 @@ export const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#fff', backgroundColor: 'rgba(0,0,0,0.25)',
     alignItems: 'center', justifyContent: 'center',
   },
-  checkCircleActive: { backgroundColor: AMBER },
+  checkCircleActive: { backgroundColor: LIME, borderColor: LIME },
 
   // ─── Empty ───
   emptyBox: { alignItems: 'center', paddingVertical: 80 },
@@ -97,8 +97,8 @@ export const styles = StyleSheet.create({
 
   // ─── FAB ───
   fab: {
-    position: 'absolute', right: 20, width: 56, height: 56, borderRadius: 18,
-    backgroundColor: '#1A1A1A', alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', right: 20, width: 58, height: 58, borderRadius: 19,
+    backgroundColor: LIME, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
   },
 

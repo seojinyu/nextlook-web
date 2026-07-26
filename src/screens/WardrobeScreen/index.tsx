@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { confirm } from '../../lib/confirm';
 import type { Clothing } from '../../lib/types';
-import { AMBER, CARD_GAP, CARD_PADDING } from './constants';
+import { AMBER, INK, CARD_GAP, CARD_PADDING } from './constants';
 import { styles } from './styles';
 import { useWardrobe } from './useWardrobe';
 import { filterAndSortItems, computeSeasonCounts } from './helpers';
@@ -156,7 +156,7 @@ export default function WardrobeScreen() {
           onPress={() => nav.navigate('AddClothing')}
           activeOpacity={0.85}
         >
-          <Ionicons name="add" size={26} color="#fff" />
+          <Ionicons name="add" size={28} color={INK} />
         </TouchableOpacity>
       )}
 

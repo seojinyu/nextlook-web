@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { AMBER, BOTTEGA, COLOR_GAP, H_PAD } from './constants';
+import { AMBER, BOTTEGA, LIME, LIME_LIGHT, INK, COLOR_GAP, H_PAD } from './constants';
 
 export const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FAFAF8' },
@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   // ─── Step Dots ───
   stepDots: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingVertical: 12 },
   stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E0DDD8' },
-  stepDotActive: { width: 24, backgroundColor: BOTTEGA },
+  stepDotActive: { width: 24, backgroundColor: LIME },
   stepDotDone: { backgroundColor: '#C0BDB8' },
 
   // ─── Pick Step ───
@@ -55,10 +55,10 @@ export const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
   detectedHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  detectedHeaderText: { fontSize: 13, fontWeight: '700', color: BOTTEGA },
+  detectedHeaderText: { fontSize: 13, fontWeight: '900', color: INK },
   detectedTags: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  seasonBadge: { backgroundColor: '#F0E8D6', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  seasonBadgeText: { color: AMBER, fontSize: 12, fontWeight: '700' },
+  seasonBadge: { backgroundColor: LIME_LIGHT, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  seasonBadgeText: { color: INK, fontSize: 12, fontWeight: '800' },
   colorInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detectedSwatch: {
     width: 18, height: 18, borderRadius: 6,
@@ -66,10 +66,10 @@ export const styles = StyleSheet.create({
   },
   detectedName: { fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
   editedBadge: {
-    backgroundColor: BOTTEGA, paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: LIME, paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 8, marginLeft: 'auto',
   },
-  editedBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  editedBadgeText: { color: INK, fontSize: 10, fontWeight: '900' },
 
   // ─── Category / Season Chips ───
   catRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },

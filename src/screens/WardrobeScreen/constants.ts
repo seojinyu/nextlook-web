@@ -51,9 +51,15 @@ export const SEASON_FILTERS = [
   { key: 'winter', label: '겨울', icon: 'snow-outline' },
 ];
 
-export const AMBER = '#C49A3C';
-export const AMBER_LIGHT = '#F5EFE0';
-export const AMBER_SELECTED = '#F0E8D6';
+// ─── Bold Street 팔레트 (통일) ───
+export const LIME = '#CBFF3C';        // 일렉트릭 라임 — 액티브 채움 (텍스트는 INK)
+export const INK = '#111111';         // 니어 블랙 — 강조 텍스트/아이콘·기본 버튼
+export const LIME_LIGHT = '#F1FBD7';  // 라이트 라임 틴트 (미선택 배경)
+
+// 레거시 호환 — 기존 참조가 남아도 Bold Street 톤으로 매핑
+export const AMBER = INK;
+export const AMBER_LIGHT = '#F0EDEA';
+export const AMBER_SELECTED = LIME_LIGHT;
 
 export const { width: SCREEN_W } = Dimensions.get('window');
 export const CARD_GAP = 10;

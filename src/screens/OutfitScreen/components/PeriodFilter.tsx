@@ -1,6 +1,6 @@
 import { ScrollView, TouchableOpacity, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { NAVY } from '../constants';
+import { INK } from '../constants';
 import { styles } from '../styles';
 
 interface Props {
@@ -27,7 +27,7 @@ export default function PeriodFilter({ periods, totalCount, active, onChange }: 
         <Ionicons
           name="calendar-outline"
           size={13}
-          color={isAll ? '#fff' : NAVY}
+          color={INK}
           style={{ marginRight: 4 }}
         />
         <Text style={[styles.periodChipText, isAll && styles.periodChipTextActive]}>

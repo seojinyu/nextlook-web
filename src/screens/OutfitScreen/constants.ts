@@ -24,8 +24,14 @@ export const CONDITION_KR: Record<string, string> = {
   Haze: '연무',
 };
 
-export const NAVY = '#3D5A80';
-export const NAVY_LIGHT = '#E8EDF2';
+// ─── Bold Street 팔레트 (통일) ───
+export const LIME = '#CBFF3C';        // 일렉트릭 라임 — 액티브 채움 (텍스트는 INK)
+export const INK = '#111111';         // 니어 블랙
+export const LIME_LIGHT = '#F1FBD7';
+
+// 레거시 호환 — 기존 NAVY 참조를 Bold Street 톤으로 매핑
+export const NAVY = INK;
+export const NAVY_LIGHT = '#F0EDEA';
 
 export const { width: SCREEN_W } = Dimensions.get('window');
 export const H_PAD = 20;

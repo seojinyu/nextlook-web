@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { H_PAD, NAVY, NAVY_LIGHT } from './constants';
+import { H_PAD, NAVY, NAVY_LIGHT, LIME, INK } from './constants';
 
 export const styles = StyleSheet.create({
   root: {
@@ -17,8 +17,8 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 0.5, borderBottomColor: '#EDEAE6',
     flexShrink: 0,
   },
-  title: { fontSize: 22, fontWeight: '800', color: '#1A1A1A', letterSpacing: -0.5 },
-  subtitle: { fontSize: 12, color: '#7A7570', marginTop: 2 },
+  title: { fontSize: 26, fontWeight: '900', color: INK, letterSpacing: -1 },
+  subtitle: { fontSize: 12, color: '#7A7570', marginTop: 2, fontWeight: '700' },
   countBadge: {
     backgroundColor: NAVY, width: 28, height: 28, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
@@ -45,18 +45,18 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
     backgroundColor: NAVY_LIGHT, gap: 4,
   },
-  periodChipActive: { backgroundColor: NAVY },
-  periodChipText: { fontSize: 13, fontWeight: '700', color: NAVY },
-  periodChipTextActive: { color: '#fff' },
-  periodChipYear: { fontSize: 11, fontWeight: '700', color: NAVY, opacity: 0.8 },
-  periodChipMonth: { fontSize: 13, fontWeight: '800', color: NAVY, marginLeft: 4 },
+  periodChipActive: { backgroundColor: LIME },
+  periodChipText: { fontSize: 13, fontWeight: '800', color: INK },
+  periodChipTextActive: { color: INK },
+  periodChipYear: { fontSize: 11, fontWeight: '700', color: INK, opacity: 0.6 },
+  periodChipMonth: { fontSize: 13, fontWeight: '800', color: INK, marginLeft: 4 },
   periodCountBadge: {
     backgroundColor: '#fff', minWidth: 22, height: 22, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center', marginLeft: 6, paddingHorizontal: 6,
   },
-  periodCountBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  periodCountText: { fontSize: 11, fontWeight: '800', color: NAVY },
-  periodCountTextActive: { color: '#fff' },
+  periodCountBadgeActive: { backgroundColor: 'rgba(0,0,0,0.12)' },
+  periodCountText: { fontSize: 11, fontWeight: '800', color: INK },
+  periodCountTextActive: { color: INK },
 
   // ─── Empty ───
   emptyBox: { alignItems: 'center', paddingVertical: 60 },
@@ -112,12 +112,12 @@ export const styles = StyleSheet.create({
   statsItem: { flex: 1, alignItems: 'center', position: 'relative' },
   statsRankBadge: {
     position: 'absolute', top: -4, left: -4, zIndex: 2,
-    width: 22, height: 22, borderRadius: 11, backgroundColor: NAVY,
+    width: 22, height: 22, borderRadius: 11, backgroundColor: LIME,
     alignItems: 'center', justifyContent: 'center',
   },
-  statsRankText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  statsRankText: { color: INK, fontSize: 11, fontWeight: '900' },
   statsImage: { width: '100%', aspectRatio: 1, borderRadius: 12, backgroundColor: '#F5F4F2' },
-  statsCount: { marginTop: 6, fontSize: 12, fontWeight: '700', color: NAVY },
+  statsCount: { marginTop: 6, fontSize: 12, fontWeight: '800', color: INK },
 
   // ─── Note Edit Modal ───
   modalBackdrop: {

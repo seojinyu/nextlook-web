@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { confirm } from '../../../lib/confirm';
-import { AMBER } from '../constants';
+import { AMBER, LIME } from '../constants';
 import { styles } from '../styles';
 
 interface Props {
@@ -50,7 +50,10 @@ export default function Header({
       ) : (
         <>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>My Closet</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+              <Text style={styles.headerTitle}>MY CLOSET</Text>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: LIME, marginBottom: 3 }} />
+            </View>
             <Text style={styles.headerCount}>{totalCount}벌</Text>
           </View>
           <View style={styles.headerRight}>

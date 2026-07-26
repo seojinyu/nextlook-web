@@ -1,5 +1,5 @@
 import { View, Text, Image, ActivityIndicator } from 'react-native';
-import { BOTTEGA } from '../constants';
+import { INK } from '../constants';
 import { styles } from '../styles';
 
 interface Props {
@@ -12,7 +12,7 @@ export default function AnalyzeStep({ localUri, status }: Props) {
     <View style={styles.analyzeArea}>
       {localUri && <Image source={{ uri: localUri }} style={styles.analyzeImage} />}
       <View style={styles.analyzeBadge}>
-        <ActivityIndicator color={BOTTEGA} size="small" />
+        <ActivityIndicator color={INK} size="small" />
         <Text style={styles.analyzeText}>{status}</Text>
       </View>
     </View>

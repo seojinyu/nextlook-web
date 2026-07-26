@@ -54,8 +54,14 @@ export const COLORS = [
 
 export type ColorEntry = { name: string; hex: string };
 
-export const BOTTEGA = '#1B6B4A';
-export const AMBER = '#C49A3C';
+// ─── Bold Street 팔레트 (통일) ───
+export const LIME = '#CBFF3C';        // 일렉트릭 라임 — 채움/진행/다크 위 아이콘
+export const INK = '#111111';         // 니어 블랙 — 화이트 위 텍스트/아이콘
+export const LIME_LIGHT = '#F1FBD7';
+
+// 레거시 호환 — BOTTEGA(채움/다크 위) → LIME, AMBER(텍스트) → INK
+export const BOTTEGA = LIME;
+export const AMBER = INK;
 
 export const CAT_LABEL: Record<string, string> = {
   top: '상의',

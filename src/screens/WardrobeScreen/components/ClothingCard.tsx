@@ -1,6 +1,6 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CARD_W, SEASON_ICON } from '../constants';
+import { CARD_W, SEASON_ICON, INK } from '../constants';
 import { styles } from '../styles';
 import type { Clothing } from '../../../lib/types';
 
@@ -56,7 +56,7 @@ export default function ClothingCard({ item, selectMode, selected, onPress, onLo
       </View>
       {selectMode && (
         <View style={[styles.checkCircle, selected && styles.checkCircleActive]}>
-          {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+          {selected && <Ionicons name="checkmark" size={14} color={INK} />}
         </View>
       )}
     </TouchableOpacity>

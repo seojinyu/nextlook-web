@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BOTTEGA, type ColorEntry } from '../constants';
+import { INK, type ColorEntry } from '../constants';
 import { styles } from '../styles';
 
 interface Props {
@@ -13,7 +13,7 @@ export default function DetectedBox({ detectedColor, selectedColor }: Props) {
   return (
     <View style={styles.detectedBox}>
       <View style={styles.detectedHeader}>
-        <Ionicons name="sparkles" size={14} color={BOTTEGA} />
+        <Ionicons name="sparkles" size={14} color={INK} />
         <Text style={styles.detectedHeaderText}>AI 분석 결과</Text>
       </View>
       <View style={styles.detectedTags}>

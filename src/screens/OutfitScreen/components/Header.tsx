@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { confirm } from '../../../lib/confirm';
+import { LIME } from '../constants';
 import { styles } from '../styles';
 
 interface Props {
@@ -22,7 +23,10 @@ export default function Header({ insetsTop, entryCount }: Props) {
   return (
     <View style={[styles.header, { paddingTop: insetsTop + 12 }]}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.title}>Outfit Memory</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+          <Text style={styles.title}>OUTFIT MEMORY</Text>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: LIME, marginBottom: 3 }} />
+        </View>
         <Text style={styles.subtitle}>기록한 코디를 날씨와 함께 확인하세요</Text>
       </View>
       {entryCount > 0 && (

@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SEASON_FILTERS } from '../constants';
+import { SEASON_FILTERS, INK } from '../constants';
 import { styles } from '../styles';
 
 interface Props {
@@ -25,7 +25,7 @@ export default function SeasonFilter({ active, counts, onChange }: Props) {
             <Ionicons
               name={f.icon as any}
               size={14}
-              color={isActive ? '#fff' : '#7A7570'}
+              color={isActive ? INK : '#7A7570'}
               style={{ marginRight: 4 }}
             />
             <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
