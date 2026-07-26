@@ -10,6 +10,17 @@ import { getWeatherSeason } from '../../lib/recommend/weatherFit';
 import type { Clothing, OutfitSuggestion, WeatherSnapshot } from '../../lib/types';
 import { computeOutfitGaps } from './outfitGaps';
 
+/** 실제 브랜드로 볼 수 있는 값인지 (노브랜드·빈값·숫자만 등 제외) */
+function isRealBrand(brand?: string): boolean {
+  const b = (brand ?? '').trim();
+  if (b.length < 2) return false;
+  const lower = b.toLowerCase();
+  const junk = ['노브랜드', 'nobrand', 'no brand', '기타', '자체제작', '해외브랜드', '수입', 'oem'];
+  if (junk.includes(lower)) return false;
+  if (/^\d+$/.test(b)) return false;
+  return true;
+}
+
 export interface ShoppingProduct {
   id: string;
   title: string;
@@ -76,10 +87,14 @@ export function useShoppingRecs(
         gaps,
       });
 
-      // 브랜드 있는 상품만 노출 (클라이언트 이중 필터 — 서버 배포 전에도 즉시 적용).
-      // 단, 브랜드 상품이 하나도 없으면(구버전 서버 응답) 화면이 비지 않도록 원본 유지.
-      const all = res.products ?? [];
-      const branded = all.filter((p) => !!p.brand && p.brand.trim().length > 0);
+      // 클라이언트 이중 필터 (서버 배포 전에도 즉시 적용):
+      //  1) 우산 등 비의류 제외
+      //  2) 실제 브랜드 있는 상품만 (노브랜드·빈값 제외)
+      const all = (res.products ?? []).filter(
+        (p) => !/우산|umbrella|레인부츠 커버/i.test(`${p.title} ${p.category}`),
+      );
+      const branded = all.filter((p) => isRealBrand(p.brand));
+      // 브랜드 상품이 하나도 없으면(구버전 서버) 화면이 비지 않도록 원본 유지
       const finalProducts = branded.length > 0 ? branded : all;
 
       console.log('[useShoppingRecs] 상품:', all.length, '→ 브랜드:', finalProducts.length,

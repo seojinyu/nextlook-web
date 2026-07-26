@@ -56,10 +56,8 @@ export function computeOutfitGaps(
     candidates.push({ key: 'top', reason: '오늘 날씨에 맞는 상의를 채워보세요' });
   }
 
-  // 2) 날씨 소품
-  if (isRain) {
-    candidates.push({ key: 'accessory', reason: '오늘 비 소식 · 우산 미리 챙기세요' });
-  } else if (isSnow || cold) {
+  // 2) 날씨 소품 (우산 등 비의류는 추천하지 않음 — 입는 아이템만)
+  if (isSnow || cold) {
     candidates.push({ key: 'accessory', reason: '추운 날 · 목도리 하나로 체감 +3°' });
   } else if (hot) {
     candidates.push({ key: 'accessory', reason: '햇빛 강한 날 · 캡모자로 마무리' });

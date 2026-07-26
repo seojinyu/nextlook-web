@@ -116,7 +116,6 @@ const BOTTOM_POOL: Record<string, string[]> = {
   spring_fall: ['청바지', '슬랙스', '와이드팬츠', '치노팬츠'],
   winter: ['기모팬츠', '기모 슬랙스', '코듀로이팬츠', '두꺼운 슬랙스'],
 };
-const ACC_RAIN = ['장우산', '접이식 우산', '방수 우산'];
 const ACC_COLD = ['목도리', '머플러', '니트 비니', '기모 장갑'];
 const ACC_HOT = ['볼캡', '버킷햇', '캡모자', '선캡'];
 
@@ -169,10 +168,9 @@ function buildGapQuery(gap: GapRequest, body: RequestBody, seed: string, i: numb
   if (gap.key === 'bottom') {
     return coupangDecorate(pickFromPool(BOTTOM_POOL[sk], seed + '-bot'), body, seed, i);
   }
-  // accessory (성별 prefix 없이 — '남성 우산' 어색함 방지)
-  const isRain = body.weather_condition === 'Rain' || body.weather_condition === 'Drizzle' || body.weather_condition === 'Thunderstorm';
+  // accessory — 입는 소품만 (우산 등 비의류 제외). 성별 prefix 없이.
   const isSnow = body.weather_condition === 'Snow';
-  const pool = isRain ? ACC_RAIN : (isSnow || body.temp_avg < 10) ? ACC_COLD : ACC_HOT;
+  const pool = (isSnow || body.temp_avg < 10) ? ACC_COLD : ACC_HOT;
   return coupangDecorate(pickFromPool(pool, seed + '-acc'), body, seed, i, false);
 }
 
@@ -273,20 +271,7 @@ Deno.serve(async (req) => {
         taken++;
         if (gaps && taken >= perGroup) break;
       }
-
-      // 안전장치: 브랜드 상품이 하나도 없어 그룹이 비면 노브랜드로 최소 채움
-      if (gaps && taken === 0) {
-        let fallback = filterByGender(coupang, body.gender);
-        fallback = filterBySeason(fallback, body);
-        fallback = seededShuffle(fallback, seed);
-        for (const p of fallback) {
-          if (seen.has(p.id)) continue;
-          seen.add(p.id);
-          products.push(p);
-          taken++;
-          if (taken >= 4) break;
-        }
-      }
+      // 브랜드 상품만 노출 — 비브랜드 폴백 없음 (브랜드 없으면 그 그룹은 비워둠)
     }
     const finalProducts = gaps ? products.slice(0, 32) : products.slice(0, 12);
     console.log('[shopping-recs] final products:', finalProducts.length, 'groups:', queries.length);
@@ -617,10 +602,9 @@ async function fetchNaverShopping(query: string, seed: string): Promise<Product[
     // 쿠팡·브랜드 필터 손실 대비 30개 반환
     return shuffled.slice(0, 30).map((item): Product => {
       const productUrl = buildAffiliateLink(item);
-      // 브랜드: brand 우선, 없으면 maker(제조사)로 폴백
-      const brand = (item.brand && String(item.brand).trim())
-        || (item.maker && String(item.maker).trim())
-        || undefined;
+      // 브랜드: 네이버 brand 필드만 사용 (maker/제조사는 실제 브랜드가 아닌 경우 많아 제외)
+      const rawBrand = (item.brand && String(item.brand).trim()) || '';
+      const brand = isRealBrand(rawBrand) ? rawBrand : undefined;
       return {
         id: String(item.productId ?? item.link),
         title: stripHtml(item.title ?? ''),
@@ -673,4 +657,15 @@ function buildAffiliateLink(item: any): string {
 
 function stripHtml(str: string): string {
   return str.replace(/<[^>]+>/g, '').trim();
+}
+
+/** 실제 브랜드로 볼 수 있는 값인지 (노브랜드·빈값·숫자만 등 제외) */
+function isRealBrand(brand: string): boolean {
+  const b = brand.trim();
+  if (b.length < 2) return false;
+  const lower = b.toLowerCase();
+  const junk = ['노브랜드', 'nobrand', 'no brand', '기타', '자체제작', '해외브랜드', '수입', 'oem'];
+  if (junk.some((j) => lower === j)) return false;
+  if (/^\d+$/.test(b)) return false; // 숫자만
+  return true;
 }
