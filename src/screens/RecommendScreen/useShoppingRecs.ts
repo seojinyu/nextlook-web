@@ -74,10 +74,17 @@ export function useShoppingRecs(
         refresh_seed: refreshSeed,
         gaps,
       });
-      console.log('[useShoppingRecs] 상품:', res.products?.length ?? 0,
+
+      // 브랜드 있는 상품만 노출 (클라이언트 이중 필터 — 서버 배포 전에도 즉시 적용).
+      // 단, 브랜드 상품이 하나도 없으면(구버전 서버 응답) 화면이 비지 않도록 원본 유지.
+      const all = res.products ?? [];
+      const branded = all.filter((p) => !!p.brand && p.brand.trim().length > 0);
+      const finalProducts = branded.length > 0 ? branded : all;
+
+      console.log('[useShoppingRecs] 상품:', all.length, '→ 브랜드:', finalProducts.length,
                   'gaps:', gaps.map((g) => g.key).join(','),
                   'date:', targetDate, 'refresh:', refreshSeed);
-      setResult(res);
+      setResult({ ...res, products: finalProducts });
     } catch (e: any) {
       console.warn('[useShoppingRecs] fail:', e);
       setError(e.message ?? String(e));
