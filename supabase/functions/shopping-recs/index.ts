@@ -211,10 +211,17 @@ Deno.serve(async (req) => {
         .eq('date', today)
         .maybeSingle();
 
+      const wantsGaps = Array.isArray(body.gaps) && body.gaps.length > 0;
+      // 구버전(gapKey 없는 flat) 캐시가 코디-연결형을 덮어쓰지 않도록,
+      // gap 요청 시엔 캐시도 신버전(gapKey 보유)일 때만 사용.
+      const cacheIsNewFormat = !wantsGaps
+        || (Array.isArray(existing?.products) && (existing!.products[0] as any)?.gapKey);
+
       if (existing && Array.isArray(existing.products) && existing.products.length > 0
           && existing.weather_condition === body.weather_condition
           && existing.temp_avg === body.temp_avg
-          && existing.gender === (body.gender ?? null)) {
+          && existing.gender === (body.gender ?? null)
+          && cacheIsNewFormat) {
         console.log('[shopping-recs] cache hit');
         return json({ cached: true, ...existing });
       }
